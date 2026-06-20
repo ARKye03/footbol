@@ -1,4 +1,5 @@
 import sveltekit from '../.svelte-kit/cloudflare/_worker.js';
+import { runCatalogSync } from '$lib/server/ingest/sync';
 
 export { GameRoom } from '$lib/server/durable/game-room';
 
@@ -19,7 +20,8 @@ export default {
 		return sveltekit.fetch(request, env, ctx);
 	},
 
-	async scheduled(_event, _env, _ctx) {
-		// Phase 1: ctx.waitUntil(runCatalogSync(env)) — API-Football refresh (docs/04)
+	async scheduled(_event, env, ctx) {
+		// API-Football catalog refresh (docs/04). No-op unless API_FOOTBALL_KEY is set.
+		ctx.waitUntil(runCatalogSync(env));
 	}
 } satisfies ExportedHandler<Env>;

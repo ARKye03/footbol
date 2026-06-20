@@ -25,14 +25,14 @@ Goal: the scaffold runs locally with real bindings, auth works, CI is green.
 
 Goal: a real, query-able footballer catalog, locally with no API key.
 
-- [ ] `footballer` schema finalized + indexes. ([02](./02-data-model.md))
-- [ ] `fixtures/footballers.sample.json` (~30–50) + placeholder/sample images. ([04](./04-data-ingestion.md))
-- [ ] `scripts/seed.ts` (`getPlatformProxy`) → local D1 + R2; `pnpm seed:local`. ([04](./04-data-ingestion.md))
-- [ ] `routes/img/[...key]/+server.ts` streams R2 with caching. ([06](./06-frontend.md))
-- [ ] `sampleBoard()` pool query + `pools.ts` config list. ([04](./04-data-ingestion.md))
-- [ ] (Optional now) `api-football.ts` + `sync.ts` + `scheduled()` cron. ([04](./04-data-ingestion.md))
+- [x] `footballer` schema finalized + indexes (done in Phase 0). ([02](./02-data-model.md))
+- [x] `fixtures/footballers.sample.json` (44 across 5 leagues, season 2023). Headshots are **generated** per-player SVG avatars (initials on a deterministic gradient) — no binaries committed; `photoKey` is `players/<id>.svg` for samples, `.webp` for real sync. ([04](./04-data-ingestion.md))
+- [x] `scripts/seed.ts` (`getPlatformProxy`) → local D1 + R2; `pnpm seed:local`. Generates avatars + the `_placeholder.svg` fallback. ([04](./04-data-ingestion.md))
+- [x] `routes/img/[...key]/+server.ts` streams R2 (ETag/304 + immutable cache, placeholder fallback). ([06](./06-frontend.md))
+- [x] `sampleBoard()` (`db/catalog.ts`) + `pools.ts` config list; `BoardCard` type added to `state.ts`. ([04](./04-data-ingestion.md))
+- [x] (Optional) `ingest/api-football.ts` + `ingest/sync.ts` (`runCatalogSync`) wired to `worker.ts` `scheduled()`; `pnpm sync:local`. `API_FOOTBALL_KEY` secret declared on `Env` via `src/cloudflare.d.ts`. ([04](./04-data-ingestion.md))
 
-**Done when:** seeded locally, a page can render a grid of real headshots from local R2.
+**Done when:** seeded locally, a page can render a grid of real headshots from local R2. ✅ Seeded (44 rows / 5 leagues / 45 R2 objects); preview at `/catalog/[[pool]]`. `check`/`lint`/`test`/`build`/dry-run all green.
 
 ## Phase 2 — Room lifecycle & pure rules (no realtime yet)
 

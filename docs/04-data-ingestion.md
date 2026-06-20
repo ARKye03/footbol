@@ -50,7 +50,7 @@ for each configured (league, season):
 
 Most contributors won't have an API key. Provide a committed fixture + a one-command loader so the app is playable offline.
 
-- `fixtures/footballers.sample.json` — ~30–50 footballers with fields matching the `footballer` schema. `photoKey` points at bundled placeholder/sample images (committed under `fixtures/img/` or just reuse `_placeholder.webp`).
+- `fixtures/footballers.sample.json` — 44 footballers (5 leagues, season 2023) with fields matching the `footballer` schema (minus `active`/`updatedAt`, which the seed fills). **No image binaries are committed**: `scripts/seed.ts` generates a deterministic per-player SVG avatar (initials on a hashed gradient) and uploads it, so the offline grid still looks distinct. Sample `photoKey`s therefore end in `.svg` (`players/<id>.svg`); the real API-Football sync writes `.webp`. The `/img` route content-types by stored R2 metadata, falling back to the key extension (`r2.ts#contentTypeForKey`), so both coexist.
 - **Loader options** (pick one; both documented in [07](./07-local-development.md)):
   1. **Dev route** `routes/api/dev/seed/+server.ts` — POST handler, **guarded to dev only** (`if (!dev) error(404)`), uses `event.platform.env` to upsert D1 rows + `R2.put` the sample images. Works under `vite dev` (platformProxy). One click from a dev page or `curl`.
   2. **Script** `scripts/seed.ts` — `getPlatformProxy()` + Drizzle + R2 put. Run via `pnpm seed:local`. No dev server needed.

@@ -8,3 +8,14 @@ declare module '*_worker.js' {
 	};
 	export default handler;
 }
+
+// Runtime secret (docs/04): `.dev.vars` locally, `wrangler secret put` in prod.
+// Declared here (not in `wrangler.jsonc` vars) so it isn't committed; merges into
+// the generated `Env`. Optional — the catalog sync is the only consumer.
+declare global {
+	interface Env {
+		API_FOOTBALL_KEY?: string;
+	}
+}
+
+export {};
