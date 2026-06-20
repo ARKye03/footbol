@@ -38,14 +38,16 @@ Goal: a real, query-able footballer catalog, locally with no API key.
 
 Goal: the entire game _logic_ exists and is unit-tested, plus create/join plumbing.
 
-- [ ] `protocol.ts`, `state.ts` types. ([03](./03-realtime-and-game-logic.md), [02](./02-data-model.md))
-- [ ] `board.ts`: seeded `buildBoard` + `assignSecrets`. ([03](./03-realtime-and-game-logic.md))
-- [ ] `rules.ts`: `reduce` for all commands + guards + state machine. ([03](./03-realtime-and-game-logic.md))
-- [ ] **Unit tests** covering every guard, win/lose, disconnect/reconnect, full-game scripts. ([08](./08-testing.md))
-- [ ] `POST /api/rooms`: generate code, pick board. ([06](./06-frontend.md))
-- [ ] `/play/[code]` `load`: guest identity + `wsToken`. ([05](./05-auth-and-sessions.md))
+- [x] `protocol.ts` (Client/Server messages, `parseClientMessage`/`encode`/`toPublicState`) + full `state.ts` types (`GameState`, `PlayerSlot`, `ChatEntry`, `Phase`, `EndReason`; added `turns`). ([03](./03-realtime-and-game-logic.md), [02](./02-data-model.md))
+- [x] `board.ts`: seeded `mulberry32` + `buildBoard` + `assignSecrets` (pure, deterministic). ([03](./03-realtime-and-game-logic.md))
+- [x] `rules.ts`: total `reduce` for all commands + guards + state machine; `freshState`, `toCommand`. ([03](./03-realtime-and-game-logic.md))
+- [x] **Unit tests** (32): every guard, win/lose, forfeit, disconnect/reconnect, totality (no mutation on error), full-game script, secret-leak (`toPublicState`), determinism. ([08](./08-testing.md))
+- [x] `POST /api/rooms`: generate code (`game/code.ts`), pick pool. **Board is built lazily by the DO on first connect** (this endpoint stores nothing); the pool travels with the creator. ([06](./06-frontend.md))
+- [x] `/play/[code]` `load`: guest identity + signed `wsToken` (`server/tokens.ts`, HMAC over `BETTER_AUTH_SECRET`); static placeholder page renders pre-socket. ([05](./05-auth-and-sessions.md))
 
-**Done when:** rules tests pass and a room code can be created/visited (static, pre-socket).
+**Done when:** rules tests pass and a room code can be created/visited (static, pre-socket). ✅ `check`/`lint`/`test` (32) /`build`/dry-run all green.
+
+> **Phase 2 decisions:** `reduce` is pure + viewer-agnostic — broadcasts are `patch`/`gameOver`/`opponentLeft`/`opponentBack`; the DO tailors per-socket `state` (Phase 3). `buildBoard` takes `BoardCard[]` (catalog already projects to it) rather than a separate `Footballer[]`. `rematch` is deferred to the DO (Phase 3) since rebuilding the board from the pool is impure. `verifyRoomToken` (in `tokens.ts`) is the DO's `hello` check, also Phase 3.
 
 ## Phase 3 — Realtime core
 
