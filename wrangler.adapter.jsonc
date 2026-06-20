@@ -1,0 +1,18 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	// Build-only config for @sveltejs/adapter-cloudflare (v7).
+	// The adapter writes its generated SvelteKit worker to whatever `main` points to
+	// (it rimrafs + overwrites it). We point it at the DEFAULT asset-dir location so it
+	// produces .svelte-kit/cloudflare/_worker.js (+ .assetsignore) in Workers mode and
+	// leaves our real entry (src/worker.ts) untouched. src/worker.ts re-exports that
+	// file and adds /ws → Durable Object routing. The real `main` and all runtime
+	// bindings live in wrangler.jsonc, which wrangler uses for dev/deploy. See docs/01.
+	"name": "footbol",
+	"compatibility_date": "2026-06-20",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	}
+}

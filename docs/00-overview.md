@@ -9,8 +9,8 @@ Design priorities, in order: **near-zero latency**, **zero-friction entry** (no 
 ## Game rules (MVP)
 
 1. **Room**: Player A creates a private room and gets a short code / shareable link. Player B joins with it. Exactly two players per room.
-2. **Board**: Both players see the *same* grid of N footballers (default 24) drawn from a configurable pool (league / era / size). Each footballer card shows a headshot + display name.
-3. **Secret assignment**: Each player is privately assigned one footballer from the grid — this is *their* secret, the one the **opponent** must guess. Assignments are independent (collisions allowed).
+2. **Board**: Both players see the _same_ grid of N footballers (default 24) drawn from a configurable pool (league / era / size). Each footballer card shows a headshot + display name.
+3. **Secret assignment**: Each player is privately assigned one footballer from the grid — this is _their_ secret, the one the **opponent** must guess. Assignments are independent (collisions allowed).
 4. **Turns**: Players alternate. On your turn you either:
    - **Ask a question** in chat (free text, phrased for yes/no). Your opponent answers **Yes** or **No** (button or chat). Then you flip down non-matching cards and your turn ends; or
    - **Make a guess**: pick a card as your final answer for the opponent's secret. Correct → you win. Wrong → you lose (opponent wins).
@@ -34,17 +34,17 @@ Explicitly **out** of MVP (see [Roadmap](./10-roadmap.md) Phase 6): real account
 
 ## Glossary
 
-| Term | Meaning |
-|------|---------|
-| **Room** | A single game instance, identified by a short code. Backed by one Durable Object. |
-| **Board / grid** | The shared set of footballer cards shown to both players. |
-| **Secret** | The footballer a player is assigned; the *opponent* tries to guess it. |
-| **Pool** | The filtered catalog (league/era) the board is sampled from. |
-| **Catalog** | All footballers stored in D1, populated by ingestion ([04](./04-data-ingestion.md)). |
-| **Footballer** | A catalog entry: name, photo, club, league, nationality, position, etc. |
-| **Guest** | An anonymous, cookie-backed identity created on first visit ([05](./05-auth-and-sessions.md)). |
-| **Durable Object (DO)** | Cloudflare's single-threaded stateful actor; one per room, the authority for live state. |
-| **Hibernation** | WebSocket Hibernation API — the DO can evict from memory while keeping sockets open. |
+| Term                    | Meaning                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| **Room**                | A single game instance, identified by a short code. Backed by one Durable Object.              |
+| **Board / grid**        | The shared set of footballer cards shown to both players.                                      |
+| **Secret**              | The footballer a player is assigned; the _opponent_ tries to guess it.                         |
+| **Pool**                | The filtered catalog (league/era) the board is sampled from.                                   |
+| **Catalog**             | All footballers stored in D1, populated by ingestion ([04](./04-data-ingestion.md)).           |
+| **Footballer**          | A catalog entry: name, photo, club, league, nationality, position, etc.                        |
+| **Guest**               | An anonymous, cookie-backed identity created on first visit ([05](./05-auth-and-sessions.md)). |
+| **Durable Object (DO)** | Cloudflare's single-threaded stateful actor; one per room, the authority for live state.       |
+| **Hibernation**         | WebSocket Hibernation API — the DO can evict from memory while keeping sockets open.           |
 
 ## Constraints & assumptions
 

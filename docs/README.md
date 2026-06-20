@@ -4,19 +4,19 @@ Real-time, two-player "¿Quién es quién?" (Guess Who?) for football players. B
 
 These docs are the full build plan: what to build, why, and how to run it locally. Read in order for onboarding; jump by topic once familiar.
 
-| #  | Doc | What it covers |
-|----|-----|----------------|
-| 00 | [Overview](./00-overview.md) | Vision, game rules, glossary, MVP definition |
-| 01 | [Architecture](./01-architecture.md) | System design, data flow, tech rationale, target repo layout |
-| 02 | [Data Model](./02-data-model.md) | D1 schema, Durable Object state, R2/KV layout, migrations |
-| 03 | [Realtime & Game Logic](./03-realtime-and-game-logic.md) | Durable Object, WebSocket protocol, pure rules state machine |
-| 04 | [Data Ingestion](./04-data-ingestion.md) | API-Football sync, R2 image pipeline, offline seed fixtures |
-| 05 | [Auth & Sessions](./05-auth-and-sessions.md) | Anonymous guests (Better Auth), cookies, upgrade path |
-| 06 | [Frontend](./06-frontend.md) | Routes, components, client WS store, i18n, UX, a11y |
-| 07 | [Local Development](./07-local-development.md) | Dual dev modes, bindings, local D1/R2 seeding, troubleshooting |
-| 08 | [Testing](./08-testing.md) | Unit / component / Durable Object / E2E strategy |
-| 09 | [Deployment](./09-deployment.md) | Environments, secrets, CI/CD, cron, observability |
-| 10 | [Roadmap](./10-roadmap.md) | Phases 0–6, MVP cut line, task checklists |
+| #   | Doc                                                      | What it covers                                                 |
+| --- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| 00  | [Overview](./00-overview.md)                             | Vision, game rules, glossary, MVP definition                   |
+| 01  | [Architecture](./01-architecture.md)                     | System design, data flow, tech rationale, target repo layout   |
+| 02  | [Data Model](./02-data-model.md)                         | D1 schema, Durable Object state, R2/KV layout, migrations      |
+| 03  | [Realtime & Game Logic](./03-realtime-and-game-logic.md) | Durable Object, WebSocket protocol, pure rules state machine   |
+| 04  | [Data Ingestion](./04-data-ingestion.md)                 | API-Football sync, R2 image pipeline, offline seed fixtures    |
+| 05  | [Auth & Sessions](./05-auth-and-sessions.md)             | Anonymous guests (Better Auth), cookies, upgrade path          |
+| 06  | [Frontend](./06-frontend.md)                             | Routes, components, client WS store, i18n, UX, a11y            |
+| 07  | [Local Development](./07-local-development.md)           | Dual dev modes, bindings, local D1/R2 seeding, troubleshooting |
+| 08  | [Testing](./08-testing.md)                               | Unit / component / Durable Object / E2E strategy               |
+| 09  | [Deployment](./09-deployment.md)                         | Environments, secrets, CI/CD, cron, observability              |
+| 10  | [Roadmap](./10-roadmap.md)                               | Phases 0–6, MVP cut line, task checklists                      |
 
 ## TL;DR for a new contributor
 

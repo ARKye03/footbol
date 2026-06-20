@@ -13,8 +13,17 @@ Footballer data and headshots are **pre-loaded** into D1/R2. Nothing calls API-F
 
 ```ts
 // src/lib/server/ingest/api-football.ts
-export interface RawPlayer { id: number; name: string; photo: string; nationality: string; /* ... */ }
-export async function fetchPlayers(key: string, league: number, season: number): Promise<RawPlayer[]>;
+export interface RawPlayer {
+	id: number;
+	name: string;
+	photo: string;
+	nationality: string; /* ... */
+}
+export async function fetchPlayers(
+	key: string,
+	league: number,
+	season: number
+): Promise<RawPlayer[]>;
 ```
 
 ## Sync pipeline (`src/lib/server/ingest/sync.ts`)
@@ -33,6 +42,7 @@ for each configured (league, season):
 - **Configured pools**: a small static list in `src/lib/server/ingest/pools.ts` (e.g. top-5 leagues, current + a couple past seasons). This list defines what's available in the pool picker UI.
 
 ### Two ways to run it
+
 - **Cron (prod)**: `worker.ts` `scheduled()` → `runCatalogSync(env)` on the `triggers.crons` schedule ([01](./01-architecture.md)). Weekly is plenty.
 - **Manual / local**: a Node script `scripts/sync.ts` using `getPlatformProxy()` to get `env` (D1 + R2 bindings) outside a request, so you can populate **local** storage from a real key without deploying. Gate behind an explicit `pnpm sync:local`.
 
@@ -48,12 +58,12 @@ Most contributors won't have an API key. Provide a committed fixture + a one-com
 ```ts
 // scripts/seed.ts (sketch)
 import { getPlatformProxy } from 'wrangler';
-const { env, dispose } = await getPlatformProxy();   // local D1/R2 from wrangler.jsonc + .dev.vars
+const { env, dispose } = await getPlatformProxy(); // local D1/R2 from wrangler.jsonc + .dev.vars
 const db = getDb(env.DB as D1Database);
 const players = JSON.parse(await readFile('fixtures/footballers.sample.json', 'utf8'));
 for (const p of players) {
-  await env.ASSETS_BUCKET.put(p.photoKey, await readImage(p));
-  await db.insert(footballer).values(p).onConflictDoUpdate({ target: footballer.id, set: p });
+	await env.ASSETS_BUCKET.put(p.photoKey, await readImage(p));
+	await db.insert(footballer).values(p).onConflictDoUpdate({ target: footballer.id, set: p });
 }
 await dispose();
 ```

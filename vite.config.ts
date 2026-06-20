@@ -11,9 +11,17 @@ export default defineConfig({
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
-				runes: ({ filename }) => filename.split(/[/\\]/).includes('node_modules') ? undefined : true
+				runes: ({ filename }) =>
+					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
+			adapter: adapter({
+				// adapter-cloudflare v7 overwrites whatever `main` points to, so we build
+				// against a `main`-less config → it emits .svelte-kit/cloudflare/_worker.js,
+				// which src/worker.ts re-exports (real `main` + bindings: wrangler.jsonc).
+				config: 'wrangler.adapter.jsonc',
+				// make `vite dev` see local D1/R2/KV via Miniflare state from wrangler.jsonc
+				platformProxy: { configPath: 'wrangler.jsonc', persist: { path: '.wrangler/state/v3' } }
+			}),
 			typescript: {
 				config: (config) => ({
 					...config,

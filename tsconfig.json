@@ -3,7 +3,9 @@
 	"compilerOptions": {
 		"rewriteRelativeImportExtensions": true,
 		"allowJs": true,
-		"checkJs": true,
+		// src/worker.ts imports the adapter-generated .svelte-kit/cloudflare/_worker.js;
+		// type-checking that loose generated JS (and its build-output import graph) is noise.
+		"checkJs": false,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
@@ -11,8 +13,6 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"types": [
-			"./worker-configuration.d.ts"
-		]
+		"types": ["./worker-configuration.d.ts"]
 	}
 }

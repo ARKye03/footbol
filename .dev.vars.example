@@ -1,0 +1,12 @@
+# Runtime secrets — read by `wrangler dev` and by `vite dev` (adapter platformProxy).
+# Copy to `.dev.vars` (gitignored) and fill in. NOT the same as `.env` (drizzle-kit).
+
+# Better Auth signing secret — also signs room WebSocket tokens. 32+ chars locally.
+BETTER_AUTH_SECRET="dev-only-secret-change-me-0123456789abcdef"
+
+# Base URL for Better Auth. Match the dev server you use:
+#   vite dev → http://localhost:5173   |   wrangler dev → http://localhost:8787
+ORIGIN="http://localhost:5173"
+
+# Optional — only `pnpm sync:local` (API-Football ingestion, docs/04) needs it.
+API_FOOTBALL_KEY=""

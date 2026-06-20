@@ -4,14 +4,14 @@ SvelteKit + Svelte 5 runes (forced on) + Tailwind v4. Bilingual via Paraglide. T
 
 ## Routes
 
-| Route | Purpose | Server work |
-|---|---|---|
-| `/` | Home: set display name, **Create room** (pick pool), or **Join** by code/link. | `+page.server.ts` action creates a room (`POST /api/rooms`) and redirects to `/play/[code]`. |
-| `/play/[code]` | The game room: lobby → board + chat → game over. | `+page.server.ts` `load` returns `code`, `me`, `wsToken` ([05](./05-auth-and-sessions.md)). All live updates via WS. |
-| `/how-to-play` | Static rules, EN/ES. | none |
-| `/img/[...key]` | Stream R2 headshots with caching. | `+server.ts`, `platform.env.ASSETS_BUCKET` |
-| `/api/rooms` | `POST` create room → `{ code }`. | generates code, seeds board via `sampleBoard`, stores nothing itself (DO is created lazily on first WS). |
-| `/api/dev/seed` | Dev-only local catalog seed ([04](./04-data-ingestion.md)). | guarded `if (!dev) 404` |
+| Route           | Purpose                                                                        | Server work                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `/`             | Home: set display name, **Create room** (pick pool), or **Join** by code/link. | `+page.server.ts` action creates a room (`POST /api/rooms`) and redirects to `/play/[code]`.                         |
+| `/play/[code]`  | The game room: lobby → board + chat → game over.                               | `+page.server.ts` `load` returns `code`, `me`, `wsToken` ([05](./05-auth-and-sessions.md)). All live updates via WS. |
+| `/how-to-play`  | Static rules, EN/ES.                                                           | none                                                                                                                 |
+| `/img/[...key]` | Stream R2 headshots with caching.                                              | `+server.ts`, `platform.env.ASSETS_BUCKET`                                                                           |
+| `/api/rooms`    | `POST` create room → `{ code }`.                                               | generates code, seeds board via `sampleBoard`, stores nothing itself (DO is created lazily on first WS).             |
+| `/api/dev/seed` | Dev-only local catalog seed ([04](./04-data-ingestion.md)).                    | guarded `if (!dev) 404`                                                                                              |
 
 Remove the scaffold `demo/*` routes once auth patterns are copied.
 
@@ -37,25 +37,45 @@ A runes class is the single source of client-side game state. Components read it
 
 ```ts
 export class RoomSocket {
-  phase = $state<Phase>('lobby');
-  board = $state<BoardCard[]>([]);
-  chat = $state<ChatEntry[]>([]);
-  turn = $state<string | null>(null);
-  you = $state<string>('');
-  eliminated = $state<Set<string>>(new Set());   // my private flips
-  connected = $state(false);
-  opponentLeft = $state<number | null>(null);     // grace deadline ms
-  result = $state<{ winnerId: string|null; reason: string; reveal: Record<string,string> } | null>(null);
+	phase = $state<Phase>('lobby');
+	board = $state<BoardCard[]>([]);
+	chat = $state<ChatEntry[]>([]);
+	turn = $state<string | null>(null);
+	you = $state<string>('');
+	eliminated = $state<Set<string>>(new Set()); // my private flips
+	connected = $state(false);
+	opponentLeft = $state<number | null>(null); // grace deadline ms
+	result = $state<{
+		winnerId: string | null;
+		reason: string;
+		reveal: Record<string, string>;
+	} | null>(null);
 
-  get myTurn() { return this.turn === this.you; }
+	get myTurn() {
+		return this.turn === this.you;
+	}
 
-  constructor(code: string, wsToken: string) { /* open ws, hello, reconnect w/ backoff */ }
-  ask(text: string) {/* send {t:'ask'} */}
-  answer(v: boolean) {/* ... */}
-  endTurn() {/* ... */}
-  flip(id: string, down: boolean) { /* optimistic local toggle + send */ }
-  guess(id: string) {/* ... */}
-  rematch() {/* ... */}
+	constructor(code: string, wsToken: string) {
+		/* open ws, hello, reconnect w/ backoff */
+	}
+	ask(text: string) {
+		/* send {t:'ask'} */
+	}
+	answer(v: boolean) {
+		/* ... */
+	}
+	endTurn() {
+		/* ... */
+	}
+	flip(id: string, down: boolean) {
+		/* optimistic local toggle + send */
+	}
+	guess(id: string) {
+		/* ... */
+	}
+	rematch() {
+		/* ... */
+	}
 }
 ```
 
@@ -78,6 +98,7 @@ export class RoomSocket {
 All user-facing strings come from Paraglide. Import message fns from `$lib/paraglide/messages`; add keys to `messages/en.json` + `messages/es.json` (see [08-conventions in 06]). Locale switching uses `localizeHref` (already wired in `+layout.svelte`). Build the `LangSwitcher` to swap locale and persist preference. Football proper nouns (player/club names) come from the catalog and are **not** translated; only UI chrome is. See message-key conventions below.
 
 ### Message-key conventions
+
 - Namespaced, dot-free, snake/camel per Paraglide rules: `home_create_room`, `play_your_turn`, `play_answer_yes`, `gameover_you_won`, `error_room_full`.
 - Keep EN and ES files key-for-key identical; a CI check (or `pnpm check`) flags missing keys.
 - Parameterized messages for dynamic bits (opponent name, countdown).
@@ -90,6 +111,7 @@ All user-facing strings come from Paraglide. Import message fns from `$lib/parag
 - Mobile-first; the game must be playable one-handed on a phone.
 
 ## Accessibility
+
 - Cards are real `<button>`s with accessible names ("Flip down {name}"); flipped state via `aria-pressed`.
 - Turn changes announced via an `aria-live` region; chat updates likewise (polite).
 - Full keyboard play: tab through board, Enter to flip, dedicated controls for ask/answer/guess.

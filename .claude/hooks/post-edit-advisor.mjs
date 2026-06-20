@@ -20,7 +20,9 @@ const rel = relative(process.cwd(), file).replaceAll('\\', '/');
 if (rel.endsWith('wrangler.jsonc') || rel.endsWith('wrangler.toml')) {
 	try {
 		execFileSync('pnpm', ['gen'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-		emit('Ran `pnpm gen` — worker-configuration.d.ts (the Env type) regenerated after the wrangler config change.');
+		emit(
+			'Ran `pnpm gen` — worker-configuration.d.ts (the Env type) regenerated after the wrangler config change.'
+		);
 	} catch (e) {
 		emit(
 			`Edited wrangler config but \`pnpm gen\` failed:\n${`${e.stdout || ''}${e.stderr || ''}`.slice(0, 1500)}\nRun \`pnpm gen\` once the config is valid so the Env type stays in sync.`

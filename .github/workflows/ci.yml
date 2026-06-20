@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [trunk]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # build first: generates .svelte-kit/cloudflare/_worker.js (re-exported by src/worker.ts)
+      # and runs `wrangler types --check` (Env type must be committed & current).
+      - run: pnpm build
+
+      - run: pnpm check
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test
+
+      - run: pnpm lint

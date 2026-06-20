@@ -5,22 +5,24 @@ Phased, each phase shippable/testable on its own. **MVP = end of Phase 4.** Phas
 Legend: `[ ]` todo. Each task links to the doc that specifies it.
 
 ## Phase 0 — Foundations & local dev (no game yet)
+
 Goal: the scaffold runs locally with real bindings, auth works, CI is green.
 
-- [ ] Add bindings to `wrangler.jsonc`: `DB` (D1), `ASSETS_BUCKET` (R2), `GAME_ROOM` (DO), optional `POOL_CACHE` (KV); set `main: ./src/worker.ts`; DO `migrations` entry; `triggers.crons`. ([01](./01-architecture.md))
-- [ ] Create `src/worker.ts` stub: route `/ws/*` → DO (stub DO), else SvelteKit; `pnpm gen`. ([01](./01-architecture.md), [03](./03-realtime-and-game-logic.md))
-- [ ] **Spike**: confirm the single-worker DO re-export builds + runs in `wrangler dev`. If brittle, switch to separate-DO-worker fallback now. ([01](./01-architecture.md))
-- [ ] Configure adapter `platformProxy` so `vite dev` sees local D1/R2. ([07](./07-local-development.md))
-- [ ] `.dev.vars.example` + `.gitignore` `.dev.vars`; document `.env` vs `.dev.vars`. ([07](./07-local-development.md))
-- [ ] Add scripts: `dev:full`, `db:migrate:local`, `db:migrate:remote`, `seed:local`, `sync:local`. ([07](./07-local-development.md))
-- [ ] Better Auth `anonymous` plugin; `handleSession` guarantees a guest; `pnpm auth:schema`. ([05](./05-auth-and-sessions.md))
-- [ ] Replace `task` table with `footballer` + `gameRecord`; first migration; `db:migrate:local`. ([02](./02-data-model.md))
-- [ ] GitHub Actions CI: lint + check + test + build. ([09](./09-deployment.md))
-- [ ] Remove/replace scaffold `demo/*` once auth patterns are copied.
+- [x] Add bindings to `wrangler.jsonc`: `DB` (D1), `ASSETS_BUCKET` (R2), `GAME_ROOM` (DO); set `main: ./src/worker.ts`; DO `migrations` entry; `triggers.crons`. (`POOL_CACHE` KV deferred.) ([01](./01-architecture.md))
+- [x] Create `src/worker.ts` stub: route `/ws/*` → DO (stub DO), else SvelteKit; `pnpm gen`. ([01](./01-architecture.md), [03](./03-realtime-and-game-logic.md))
+- [x] **Spike DONE**: single-worker DO re-export validated via `wrangler deploy --dry-run` (all bindings resolve). Adapter v7 overwrites `main`, so the adapter builds against a separate `wrangler.adapter.jsonc`; also needs `nodejs_compat` + `checkJs: false`. Fallback (separate-DO-worker) **not** needed. ([01](./01-architecture.md))
+- [x] Configure adapter `platformProxy` (+ `config: 'wrangler.adapter.jsonc'`) so `vite dev` sees local D1/R2. ([07](./07-local-development.md))
+- [x] `.dev.vars.example` + `.gitignore` `.dev.vars`; document `.env` vs `.dev.vars`. ([07](./07-local-development.md))
+- [x] Add scripts: `dev:full`, `db:migrate:local`, `db:migrate:remote`, `seed:local`, `sync:local` (+ `tsx` dep). ([07](./07-local-development.md))
+- [x] Better Auth `anonymous` plugin; `handleSession` guarantees a guest (skips `/img`, `/ws`, `/favicon`); `pnpm auth:schema` (adds `user.isAnonymous`). ([05](./05-auth-and-sessions.md))
+- [x] Replace `task` table with `footballer` + `gameRecord`; first migration (`drizzle/0000_*.sql`); `db:migrate:local` applied. ([02](./02-data-model.md))
+- [x] GitHub Actions CI: build + check + test + lint (`.github/workflows/ci.yml`). ([09](./09-deployment.md))
+- [x] Remove scaffold `demo/*` (auth pattern captured in [05](./05-auth-and-sessions.md)).
 
-**Done when:** `pnpm dev` boots with a working guest session reading local D1; `pnpm dev:full` builds and serves; CI green.
+**Done when:** `pnpm dev` boots with a working guest session reading local D1; `pnpm dev:full` builds and serves; CI green. ✅ `check` / `test` / `lint` / dry-run all green; local D1 migrated. (`pnpm dev` / `dev:full` boot not yet smoke-tested — needs `.dev.vars`.)
 
 ## Phase 1 — Data layer & catalog
+
 Goal: a real, query-able footballer catalog, locally with no API key.
 
 - [ ] `footballer` schema finalized + indexes. ([02](./02-data-model.md))
@@ -33,7 +35,8 @@ Goal: a real, query-able footballer catalog, locally with no API key.
 **Done when:** seeded locally, a page can render a grid of real headshots from local R2.
 
 ## Phase 2 — Room lifecycle & pure rules (no realtime yet)
-Goal: the entire game *logic* exists and is unit-tested, plus create/join plumbing.
+
+Goal: the entire game _logic_ exists and is unit-tested, plus create/join plumbing.
 
 - [ ] `protocol.ts`, `state.ts` types. ([03](./03-realtime-and-game-logic.md), [02](./02-data-model.md))
 - [ ] `board.ts`: seeded `buildBoard` + `assignSecrets`. ([03](./03-realtime-and-game-logic.md))
@@ -45,6 +48,7 @@ Goal: the entire game *logic* exists and is unit-tested, plus create/join plumbi
 **Done when:** rules tests pass and a room code can be created/visited (static, pre-socket).
 
 ## Phase 3 — Realtime core
+
 Goal: state syncs live between two clients through the Durable Object.
 
 - [ ] `GameRoom` DO: WS hibernation accept, `webSocketMessage/Close`, storage snapshot, alarm. ([03](./03-realtime-and-game-logic.md))
@@ -57,6 +61,7 @@ Goal: state syncs live between two clients through the Durable Object.
 **Done when:** in `pnpm dev:full`, two windows see each other join and state changes propagate.
 
 ## Phase 4 — Gameplay MVP ← **MVP LINE**
+
 Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 
 - [ ] Home `/`: name, create (pool picker), join by code/link. ([06](./06-frontend.md))
@@ -72,6 +77,7 @@ Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 **Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally.
 
 ## Phase 5 — Polish
+
 - [ ] Animations (card flip, turn transitions) + `prefers-reduced-motion`.
 - [ ] Full a11y pass (keyboard, `aria-live`, contrast, tap targets). ([06](./06-frontend.md))
 - [ ] Mobile layout hardening; one-handed play.
@@ -81,6 +87,7 @@ Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 - [ ] Observability: lifecycle logging, dashboards, `wrangler tail` runbook. ([09](./09-deployment.md))
 
 ## Phase 6 — Beyond MVP
+
 - [ ] **Real accounts**: sign-up/link from anonymous; migrate history (`onLinkAccount`); OAuth. ([05](./05-auth-and-sessions.md))
 - [ ] **Stats & history**: per-player W/L, recent games from `gameRecord`; profile page.
 - [ ] **Leaderboards**.
@@ -91,11 +98,13 @@ Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 - [ ] Spectators, turn timers, emotes, PWA/offline shell.
 
 ## Suggested build order rationale
+
 - **Logic before transport** (Phase 2 before 3): a pure, tested `reduce` means the DO and UI are thin and debuggable.
 - **Local-first** (Phase 0 prioritizes the dual dev modes): you can't iterate on realtime without `dev:full` working early.
 - **Vertical MVP** (Phase 4): ship the thinnest complete loop; defer accounts/stats/matchmaking until people are actually playing.
 
 ## Cross-cutting risks to watch
+
 1. **The DO re-export build seam** — de-risk with the Phase 0 spike; fallback is the separate-worker layout. ([01](./01-architecture.md))
 2. **WS under `vite dev`** — accepted limitation; `dev:full` is the realtime path. Don't fight it. ([07](./07-local-development.md))
 3. **Secret leakage** — never send a player the `secretId` they must guess; enforce in per-socket dispatch + assert in tests. ([03](./03-realtime-and-game-logic.md))
