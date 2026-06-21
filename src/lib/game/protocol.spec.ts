@@ -25,6 +25,7 @@ describe('toPublicState', () => {
 		const view = toPublicState(s, 'a');
 		expect(view.players.b.secretId).toBeNull();
 		expect(view.players.b.eliminated).toEqual([]);
+		expect(view.seed).toBe(0); // RNG seed stripped — secrets are derivable from it
 		// the viewer keeps their own identity + flips
 		expect(view.players.a.secretId).toBe(s.players.a.secretId);
 		expect(view.players.b.name).toBe('Bob'); // non-secret fields survive
@@ -65,7 +66,7 @@ describe('toCommand', () => {
 			footballerId: 'f0',
 			down: true
 		});
-		expect(toCommand({ t: 'hello', token: 'x' }, 'a')).toBeNull();
+		expect(toCommand({ t: 'hello', token: 'x', name: 'Alice' }, 'a')).toBeNull();
 		expect(toCommand({ t: 'rematch' }, 'a')).toBeNull();
 	});
 });

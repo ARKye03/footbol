@@ -8,7 +8,7 @@ import type { PageServerLoad } from './$types';
  * real). Returns the identity + a signed `wsToken` the client presents in the WS
  * `hello`. All live state arrives over the socket (Phase 3).
  */
-export const load: PageServerLoad = async ({ params, locals, platform }) => {
+export const load: PageServerLoad = async ({ params, url, locals, platform }) => {
 	const user = locals.user;
 	if (!user) error(401, 'no session');
 
@@ -19,5 +19,7 @@ export const load: PageServerLoad = async ({ params, locals, platform }) => {
 	if (!secret) error(500, 'BETTER_AUTH_SECRET not available');
 
 	const wsToken = await mintRoomToken({ userId: user.id, code }, secret);
-	return { code, me: { id: user.id, name: user.name }, wsToken };
+	// Pool only matters for the creator (first connect builds the board); joiners ignore it.
+	const poolId = url.searchParams.get('pool') ?? 'all-stars';
+	return { code, me: { id: user.id, name: user.name }, wsToken, poolId };
 };

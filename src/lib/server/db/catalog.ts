@@ -35,3 +35,28 @@ export async function sampleBoard(
 		.orderBy(sql`random()`)
 		.limit(size);
 }
+
+/**
+ * Candidate pool in a **deterministic** order (by id), so the Durable Object can
+ * pick a board with seeded `buildBoard` (reproducible given the seed + catalog).
+ */
+export async function listPool(
+	db: Db,
+	{ league, season }: Omit<PoolFilter, 'size'>,
+	limit = 400
+): Promise<BoardCard[]> {
+	const filters = [eq(footballer.active, true)];
+	if (league) filters.push(eq(footballer.league, league));
+	if (season != null) filters.push(eq(footballer.season, season));
+
+	return db
+		.select({
+			footballerId: footballer.id,
+			name: footballer.name,
+			photoKey: footballer.photoKey
+		})
+		.from(footballer)
+		.where(and(...filters))
+		.orderBy(footballer.id)
+		.limit(limit);
+}

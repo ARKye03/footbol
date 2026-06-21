@@ -53,14 +53,18 @@ Goal: the entire game _logic_ exists and is unit-tested, plus create/join plumbi
 
 Goal: state syncs live between two clients through the Durable Object.
 
-- [ ] `GameRoom` DO: WS hibernation accept, `webSocketMessage/Close`, storage snapshot, alarm. ([03](./03-realtime-and-game-logic.md))
-- [ ] DO delegates to `reduce`; per-socket dispatch (strip opponent secret; include own eliminations). ([03](./03-realtime-and-game-logic.md))
-- [ ] Socket auth: validate `wsToken` on `hello`. ([05](./05-auth-and-sessions.md))
-- [ ] `room-socket.svelte.ts`: connect, hello, send intents, apply state/patch, reconnect w/ backoff. ([06](./06-frontend.md))
-- [ ] DO writes `gameRecord` on finish. ([02](./02-data-model.md))
-- [ ] Realtime smoke test (two `ws` clients) and/or `vitest-pool-workers`. ([08](./08-testing.md))
+- [x] `GameRoom` DO: WS hibernation accept (tag = playerId), `webSocketMessage/Close`, storage snapshot, abandonment `alarm` (grace → opponent wins, `endReason: 'abandoned'`). ([03](./03-realtime-and-game-logic.md))
+- [x] DO delegates to `reduce`; per-socket dispatch — `toPublicState` strips the opponent secret/eliminations; `opponentLeft/Back` go to the other socket only; board built lazily on first connect (`listPool` + seeded `buildBoard`). ([03](./03-realtime-and-game-logic.md))
+- [x] Socket auth: `verifyRoomToken` on `hello` (asserts `userId === pid` tag + `code` match); unauth → close 4001, 3rd player → 4002. ([05](./05-auth-and-sessions.md))
+- [x] `client/room-socket.svelte.ts`: connect, hello, typed intents, apply `state`/`patch`, optimistic flips (`SvelteSet`), reconnect with exponential backoff. ([06](./06-frontend.md))
+- [x] DO writes `gameRecord` on finish (once, best-effort `waitUntil`). ([02](./02-data-model.md))
+- [x] Realtime smoke test (`scripts/ws-smoke.ts`, `pnpm smoke:ws`): two WS clients → join, auto-start, question propagation, forfeit→gameOver, verified `gameRecord` row. ([08](./08-testing.md))
 
-**Done when:** in `pnpm dev:full`, two windows see each other join and state changes propagate.
+**Done when:** in `pnpm dev:full`, two windows see each other join and state changes propagate. ✅ verified via `smoke:ws` against `dev:full`; `check`/`lint`/`test` (32)/`build`/dry-run green.
+
+> **Phase 3 security hardening:** sockets are routed by the **verified token identity** (stored in the socket attachment after `hello`), never the connection's query `pid` — an unauthenticated/mis-identified socket receives nothing, closing a pre-auth secret-disclosure hole. The RNG `seed` is **stripped from public state** (`toPublicState`), board and secret use **independent CSPRNG seeds** (the public board order can't be used to recover secrets).
+>
+> **Phase 3 decisions:** **auto-start** on the 2nd join (no `start` intent in the protocol; the Lobby "start" button is a Phase 4 addition if wanted). WS URL carries `pid`+`pool` (query); the token rides in `hello`. A **functional single-file** `/play/[code]` page (board/chat/turn/guess/rematch) proves the loop now; componentization (`Board`/`Card`/`Chat`/`TurnBar`/`GuessDialog`) + **Tailwind** + i18n + a11y polish are Phase 4. `vitest-pool-workers` (in-runtime DO test) deferred as CI hardening — the `smoke:ws` script covers the round-trip for now.
 
 ## Phase 4 — Gameplay MVP ← **MVP LINE**
 

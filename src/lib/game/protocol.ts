@@ -6,7 +6,7 @@
 import type { ChatEntry, GameState, Phase, PlayerSlot } from './state';
 
 export type ClientMessage =
-	| { t: 'hello'; token: string } // session token to authenticate the socket
+	| { t: 'hello'; token: string; name: string } // session token authenticates the socket; name is the display name
 	| { t: 'ask'; text: string }
 	| { t: 'answer'; value: boolean }
 	| { t: 'endTurn' }
@@ -67,6 +67,7 @@ export function toPublicState(state: GameState, viewerId: string): PublicGameSta
 	}
 	return {
 		...state,
+		seed: 0, // never expose the RNG seed — secrets are derivable from it (docs/03 secret-leak guard)
 		board: state.board.map((c) => ({ ...c })),
 		chat: state.chat.map((c) => ({ ...c })),
 		order: [...state.order],
