@@ -6,7 +6,6 @@ These docs are the full build plan: what to build, why, and how to run it locall
 
 | #   | Doc                                                      | What it covers                                                 |
 | --- | -------------------------------------------------------- | -------------------------------------------------------------- |
-| 00  | [Overview](./00-overview.md)                             | Vision, game rules, glossary, MVP definition                   |
 | 01  | [Architecture](./01-architecture.md)                     | System design, data flow, tech rationale, target repo layout   |
 | 02  | [Data Model](./02-data-model.md)                         | D1 schema, Durable Object state, R2/KV layout, migrations      |
 | 03  | [Realtime & Game Logic](./03-realtime-and-game-logic.md) | Durable Object, WebSocket protocol, pure rules state machine   |
@@ -17,6 +16,7 @@ These docs are the full build plan: what to build, why, and how to run it locall
 | 08  | [Testing](./08-testing.md)                               | Unit / component / Durable Object / E2E strategy               |
 | 09  | [Deployment](./09-deployment.md)                         | Environments, secrets, CI/CD, cron, observability              |
 | 10  | [Roadmap](./10-roadmap.md)                               | Phases 0–6, MVP cut line, task checklists                      |
+| 11  | [Game Rules](./11-game-rules.md)                         | Authoritative match-flow spec — penalty, equalizer, draws      |
 
 ## TL;DR for a new contributor
 
@@ -37,5 +37,5 @@ pnpm dev:full                   # build + wrangler dev — open two browser wind
 
 - **One Worker, Durable Object re-exported** from a custom `src/worker.ts` → single deploy, same-origin WebSockets. See [01](./01-architecture.md), [03](./03-realtime-and-game-logic.md).
 - **Guests via Better Auth `anonymous` plugin** → zero-friction entry now, real accounts later with one upgrade. See [05](./05-auth-and-sessions.md).
-- **MVP questions are free human chat** (opponent answers yes/no; players flip cards manually). Structured auto-evaluated questions are post-MVP. See [00](./00-overview.md), [03](./03-realtime-and-game-logic.md).
+- **MVP questions are free human chat** (opponent answers yes/no; players flip cards manually). Structured auto-evaluated questions are post-MVP. See [11](./11-game-rules.md), [03](./03-realtime-and-game-logic.md).
 - **Game rules are a pure, framework-free module** the Durable Object wraps → fully unit-testable without the Workers runtime. See [03](./03-realtime-and-game-logic.md), [08](./08-testing.md).

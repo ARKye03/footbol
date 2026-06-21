@@ -102,6 +102,7 @@ Mostly done by the design pass (see Phase 4 note). Remaining marked below.
 
 ## Phase 6 — Beyond MVP
 
+- [ ] **Advanced match rules** (penalty phase + first-mover equalizer + draws) per [11](./11-game-rules.md). The shipped MVP uses the simple model (correct → win, wrong → instant loss); this replaces the `guess` resolution in `rules.ts`, adds `starterId` + turn-step gating + `penalty`/`equalizer` phases + nullable `winnerId`, and extends the rules tests + `GameOver` UI for draws.
 - [ ] **Real accounts**: email/password sign-in + sign-up via `/login` (Better Auth) **done**; [ ] guest→account history migration (`onLinkAccount`) + OAuth pending. ([05](./05-auth-and-sessions.md))
 - [ ] **Stats & history**: landing has a placeholder stats strip (UI only); [ ] real per-player W/L + recent games from `gameRecord` + profile page pending.
 - [ ] **Single-player vs CPU**: landing card stubbed "Coming soon"; [ ] AI opponent (yes/no answers + guessing strategy + single-player loop) pending.

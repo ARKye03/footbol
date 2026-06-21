@@ -20,13 +20,8 @@
 
 <main class="relative z-10 mx-auto max-w-[1180px] px-5 pb-20 sm:px-7">
 	<section class="pt-6 pb-8 text-center">
-		<div
-			class="inline-flex items-center gap-2 rounded-full border border-lime/25 bg-lime/10 px-3.5 py-[7px] text-[12.5px] font-bold tracking-wide text-lime uppercase"
-		>
-			● {m.home_badge_live()}
-		</div>
 		<h1
-			class="font-display mt-4 mb-2 leading-[0.9] font-black tracking-tight text-[clamp(56px,12vw,104px)]"
+			class="font-display mb-2 leading-[0.9] font-black tracking-tight text-[clamp(56px,12vw,104px)]"
 		>
 			{m.home_hero_a()}<br /><span class="text-lime">{m.home_hero_b()}</span>
 		</h1>
