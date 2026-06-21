@@ -16,6 +16,8 @@ export interface BoardCard {
 	footballerId: string;
 	name: string;
 	photoKey: string;
+	position?: string | null; // GK | DEF | MID | FWD — drives the card position badge
+	nationality?: string | null; // ISO country name — drives the card flag
 }
 
 export type Phase = 'lobby' | 'ready' | 'playing' | 'finished';

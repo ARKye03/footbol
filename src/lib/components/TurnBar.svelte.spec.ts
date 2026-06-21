@@ -8,33 +8,29 @@ const base = {
 	awaitingAnswer: false,
 	remaining: 12,
 	guessing: false,
-	onAsk: noop,
-	onAnswer: noop,
-	onEndTurn: noop,
-	onToggleGuess: noop
+	opponentName: 'Marco',
+	onMyPlayer: noop,
+	onCancelGuess: noop
 };
 
 describe('TurnBar.svelte', () => {
-	it('hides ask/guess controls when it is not your turn', async () => {
+	it('announces your turn and exposes the my-player button', async () => {
+		const onMyPlayer = vi.fn();
+		render(TurnBar, { ...base, myTurn: true, onMyPlayer });
+		await expect.element(page.getByText('Your turn')).toBeInTheDocument();
+		await page.getByRole('button', { name: 'My player' }).click();
+		expect(onMyPlayer).toHaveBeenCalledOnce();
+	});
+
+	it("announces the opponent's turn", async () => {
 		render(TurnBar, { ...base, myTurn: false });
 		await expect.element(page.getByText("Opponent's turn")).toBeInTheDocument();
-		expect(page.getByRole('button', { name: 'Ask' }).query()).toBeNull();
-		expect(page.getByRole('button', { name: 'Guess' }).query()).toBeNull();
 	});
 
-	it('shows ask + end-turn + guess on your turn and submits a question', async () => {
-		const onAsk = vi.fn();
-		render(TurnBar, { ...base, myTurn: true, onAsk });
-		await expect.element(page.getByRole('button', { name: 'Guess' })).toBeInTheDocument();
-		await page.getByRole('textbox').fill('is a defender?');
-		await page.getByRole('button', { name: 'Ask' }).click();
-		expect(onAsk).toHaveBeenCalledWith('is a defender?');
-	});
-
-	it('shows Yes/No to the answerer and reports the answer', async () => {
-		const onAnswer = vi.fn();
-		render(TurnBar, { ...base, myTurn: false, awaitingAnswer: true, onAnswer });
-		await page.getByRole('button', { name: 'Yes' }).click();
-		expect(onAnswer).toHaveBeenCalledWith(true);
+	it('shows the guess hint and cancels guess mode', async () => {
+		const onCancelGuess = vi.fn();
+		render(TurnBar, { ...base, myTurn: true, guessing: true, onCancelGuess });
+		await page.getByRole('button', { name: 'Cancel guess' }).click();
+		expect(onCancelGuess).toHaveBeenCalledOnce();
 	});
 });

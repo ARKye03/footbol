@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import type { BoardCard, PlayerSlot } from '$lib/game/state';
+	import type { BoardCard } from '$lib/game/state';
+	import SecretCard from './SecretCard.svelte';
 
 	interface Result {
 		winnerId: string | null;
@@ -10,7 +11,6 @@
 
 	interface Props {
 		result: Result;
-		players: Record<string, PlayerSlot>;
 		order: string[];
 		you: string;
 		board: BoardCard[];
@@ -18,15 +18,17 @@
 		onLeave: () => void;
 	}
 
-	let { result, players, order, you, board, onRematch, onLeave }: Props = $props();
+	let { result, order, you, board, onRematch, onLeave }: Props = $props();
 
-	const heading = $derived(
-		result.winnerId === you
+	const won = $derived(result.winnerId === you);
+	const title = $derived(
+		won
 			? m.gameover_you_won()
 			: result.winnerId === null
 				? m.gameover_over()
 				: m.gameover_you_lost()
 	);
+	const titleColor = $derived(won ? '#c6ff3a' : '#ff7a1a');
 
 	const reasonText = (reason: string): string => {
 		switch (reason) {
@@ -41,41 +43,65 @@
 		}
 	};
 
-	const cardName = (footballerId: string | undefined) =>
-		board.find((c) => c.footballerId === footballerId)?.name ?? '—';
-	const won = $derived(result.winnerId === you);
+	const opponentId = $derived(order.find((id) => id !== you) ?? null);
+	const cardFor = (pid: string | null): BoardCard | undefined =>
+		board.find((c) => c.footballerId === (pid ? result.reveal[pid] : undefined));
+	const mine = $derived(cardFor(you));
+	const theirs = $derived(cardFor(opponentId));
 </script>
 
-<section class="mx-auto max-w-md text-center">
-	<h1 class="text-2xl font-bold {won ? 'text-green-700' : 'text-zinc-800'}">{heading}</h1>
-	<p class="mt-1 text-sm text-zinc-500">{reasonText(result.reason)}</p>
+<main class="relative z-10 mx-auto max-w-[880px] px-7 pt-8 pb-20 text-center">
+	<div
+		class="font-display text-[clamp(56px,14vw,96px)] leading-[0.92] font-black tracking-tight"
+		style="color:{titleColor}"
+	>
+		{title}
+	</div>
+	<p class="mt-1.5 mb-8 text-[18px] text-mut">{reasonText(result.reason)}</p>
 
-	<h2 class="mt-5 text-sm font-semibold text-zinc-700">{m.gameover_reveal_heading()}</h2>
-	<ul class="mt-1 flex flex-col items-center gap-1 text-sm">
-		{#each order as id (id)}
-			<li>
-				{m.gameover_reveal({
-					name: `${players[id]?.name}${id === you ? ` ${m.you_suffix()}` : ''}`,
-					card: cardName(result.reveal[id])
-				})}
-			</li>
-		{/each}
-	</ul>
+	<div class="mb-9 flex flex-wrap justify-center gap-7.5" style="gap:30px">
+		<div>
+			<div class="mb-2.5 text-xs font-bold tracking-wide text-mut2 uppercase">
+				{m.gameover_your_secret()}
+			</div>
+			{#if mine}
+				<SecretCard
+					name={mine.name}
+					photoKey={mine.photoKey}
+					position={mine.position}
+					nationality={mine.nationality}
+					accent="lime"
+				/>
+			{/if}
+		</div>
+		<div>
+			<div class="mb-2.5 text-xs font-bold tracking-wide text-mut2 uppercase">
+				{m.gameover_their_secret()}
+			</div>
+			{#if theirs}
+				<SecretCard
+					name={theirs.name}
+					photoKey={theirs.photoKey}
+					position={theirs.position}
+					nationality={theirs.nationality}
+					accent="orange"
+				/>
+			{/if}
+		</div>
+	</div>
 
-	<div class="mt-5 flex justify-center gap-2">
+	<div class="flex flex-wrap justify-center gap-3">
 		<button
 			type="button"
 			onclick={onRematch}
-			class="rounded-md bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800"
+			class="rounded-xl bg-lime px-6.5 py-3.5 text-base font-extrabold text-ink transition hover:brightness-105"
+			style="padding-left:26px;padding-right:26px">↻ {m.gameover_rematch()}</button
 		>
-			{m.gameover_rematch()}
-		</button>
 		<button
 			type="button"
 			onclick={onLeave}
-			class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50"
+			class="rounded-xl border border-white/[0.18] bg-white/[0.08] px-6.5 py-3.5 text-base font-extrabold text-white transition hover:bg-white/15"
+			style="padding-left:26px;padding-right:26px">{m.gameover_leave()}</button
 		>
-			{m.gameover_leave()}
-		</button>
 	</div>
-</section>
+</main>

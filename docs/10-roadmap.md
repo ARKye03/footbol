@@ -80,24 +80,29 @@ Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 - [x] Component tests on critical path (`Card`, `TurnBar`, `GuessDialog` — 9 browser tests). [ ] one E2E happy path (Playwright two-context) — **remaining**. ([08](./08-testing.md))
 - [ ] Deploy to Cloudflare; seed prod catalog — **remaining** (needs CF account/secrets). ([09](./09-deployment.md))
 
-**Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally. **Locally ✅** (`dev:full` + `smoke:ws`; bilingual UI verified EN/ES). **Live URL pending deploy.** `check`/`lint`/`test` (41)/`build`/dry-run green.
+**Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally. **Locally ✅** (`dev:full` + `smoke:ws`; bilingual UI verified EN/ES). **Live URL pending deploy.** `check`/`lint`/`test` (44)/`build`/dry-run green.
 
 > **Phase 4 decisions:** display name is **cookie-persisted** (`fb_name`), not written to the auth user row — identity stays `user.id`, name is cosmetic. Home create generates the code client-redirect-side (`303 → /play/[code]?pool=`); the pool rides the query to the DO's first connect. Remaining closeout: a Playwright two-browser-context E2E happy path, and the Cloudflare deploy + prod seed (both need real credentials).
 
+> **Design pass (post-Phase-4):** the baseline Tailwind UI was fully restyled to an imported design (`footbol.dc.html`, claude.ai/design) — dark "FUT/EAFC" pitch theme (lime `#c6ff3a` / orange `#ff7a1a` on `#07150e`), Saira Condensed + Hanken Grotesk, theme tokens in `layout.css`. New building blocks: `lib/flags.ts` (country→emoji), `BoardCard` enriched with optional `position`/`nationality` (catalog selects them), `Reveal.svelte` (staged EAFC card reveal), `SecretCard.svelte`, `GameControls.svelte` (ask/answer footer split out of `TurnBar`), `/login` route. This work knocks out most of **Phase 5** and part of **Phase 6** (see below).
+
 ## Phase 5 — Polish
 
-- [ ] Animations (card flip, turn transitions) + `prefers-reduced-motion`.
-- [ ] Full a11y pass (keyboard, `aria-live`, contrast, tap targets). ([06](./06-frontend.md))
-- [ ] Mobile layout hardening; one-handed play.
-- [ ] All unhappy paths: invalid/expired/full room, network drops, error toasts. ([06](./06-frontend.md))
+Mostly done by the design pass (see Phase 4 note). Remaining marked below.
+
+- [x] Animations (card reveal, turn dot/ring, flood) + global `prefers-reduced-motion` kill-switch (`layout.css`).
+- [ ] Full a11y pass (keyboard, `aria-live`, contrast, tap targets) — **partial**: aria contracts preserved (`aria-pressed`, `aria-live`, alertdialog), `svelte-check` a11y clean; full keyboard/contrast/tap-target audit pending. ([06](./06-frontend.md))
+- [x] Mobile layout (responsive board/sidebar grid, fluid hero) — [ ] one-handed hardening pending.
+- [ ] All unhappy paths — **partial**: fatal close (room full / unauthorized), opponent-left grace, login error states done; invalid/expired room, network-drop toasts pending. ([06](./06-frontend.md))
 - [ ] Room expiry alarm + storage cleanup verified. ([03](./03-realtime-and-game-logic.md), [09](./09-deployment.md))
-- [ ] Rematch UX; copy-link/QR; sounds (optional, off by default).
+- [x] Rematch UX; copy-link — [ ] QR (skipped in design pass); sounds (optional, off by default) pending.
 - [ ] Observability: lifecycle logging, dashboards, `wrangler tail` runbook. ([09](./09-deployment.md))
 
 ## Phase 6 — Beyond MVP
 
-- [ ] **Real accounts**: sign-up/link from anonymous; migrate history (`onLinkAccount`); OAuth. ([05](./05-auth-and-sessions.md))
-- [ ] **Stats & history**: per-player W/L, recent games from `gameRecord`; profile page.
+- [ ] **Real accounts**: email/password sign-in + sign-up via `/login` (Better Auth) **done**; [ ] guest→account history migration (`onLinkAccount`) + OAuth pending. ([05](./05-auth-and-sessions.md))
+- [ ] **Stats & history**: landing has a placeholder stats strip (UI only); [ ] real per-player W/L + recent games from `gameRecord` + profile page pending.
+- [ ] **Single-player vs CPU**: landing card stubbed "Coming soon"; [ ] AI opponent (yes/no answers + guessing strategy + single-player loop) pending.
 - [ ] **Leaderboards**.
 - [ ] **Public matchmaking** lobby (quick-play queue) vs current private rooms.
 - [ ] **Structured-question mode**: attribute schema on `footballer.attrs`, predefined question list, server auto-evaluates yes/no, auto-flip. ([02](./02-data-model.md), [04](./04-data-ingestion.md))

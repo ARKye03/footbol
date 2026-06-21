@@ -9,7 +9,7 @@ describe('GuessDialog.svelte', () => {
 		render(GuessDialog, { name: 'Haaland', onConfirm, onCancel: () => {} });
 		await expect.element(page.getByRole('alertdialog')).toBeInTheDocument();
 		await expect.element(page.getByText('Haaland', { exact: false })).toBeInTheDocument();
-		await page.getByRole('button', { name: 'Confirm guess' }).click();
+		await page.getByRole('button', { name: 'Lock it in' }).click();
 		expect(onConfirm).toHaveBeenCalledOnce();
 	});
 

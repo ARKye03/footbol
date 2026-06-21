@@ -6,10 +6,9 @@
 		awaitingAnswer: boolean;
 		remaining: number;
 		guessing: boolean;
-		onAsk: (text: string) => void;
-		onAnswer: (value: boolean) => void;
-		onEndTurn: () => void;
-		onToggleGuess: () => void;
+		opponentName?: string;
+		onMyPlayer: () => void;
+		onCancelGuess: () => void;
 	}
 
 	let {
@@ -17,61 +16,106 @@
 		awaitingAnswer,
 		remaining,
 		guessing,
-		onAsk,
-		onAnswer,
-		onEndTurn,
-		onToggleGuess
+		opponentName = '',
+		onMyPlayer,
+		onCancelGuess
 	}: Props = $props();
 
-	let question = $state('');
+	type Accent = 'lime' | 'orange' | 'neutral';
+	const view = $derived.by((): { title: string; sub: string; accent: Accent; pulse: boolean } => {
+		if (myTurn && !awaitingAnswer)
+			return {
+				title: m.play_your_turn(),
+				sub: m.play_ask_placeholder(),
+				accent: 'lime',
+				pulse: true
+			};
+		if (myTurn && awaitingAnswer)
+			return {
+				title: m.play_waiting(),
+				sub: m.play_awaiting_answer(),
+				accent: 'neutral',
+				pulse: false
+			};
+		if (!myTurn && awaitingAnswer)
+			return {
+				title: opponentName || m.play_their_turn(),
+				sub: m.play_answer_their_question(),
+				accent: 'orange',
+				pulse: false
+			};
+		return {
+			title: m.play_their_turn(),
+			sub: m.play_opponent_asking(),
+			accent: 'orange',
+			pulse: false
+		};
+	});
 
-	function submit(e: SubmitEvent) {
-		e.preventDefault();
-		const text = question.trim();
-		if (!text) return;
-		onAsk(text);
-		question = '';
-	}
-
-	const btn =
-		'rounded-md border border-green-700 px-3 py-1.5 text-sm font-medium text-green-800 hover:bg-green-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 disabled:opacity-40';
-	const btnSolid =
-		'rounded-md bg-green-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-800';
+	const bar = $derived(
+		view.accent === 'lime'
+			? 'border-lime/50 text-[#dfff9a]'
+			: view.accent === 'orange'
+				? 'border-orange/50 text-[#ffc79a]'
+				: 'border-white/14 text-fog'
+	);
+	const barBg = $derived(
+		view.accent === 'lime'
+			? 'linear-gradient(90deg,rgba(198,255,58,.22),rgba(198,255,58,.06))'
+			: view.accent === 'orange'
+				? 'linear-gradient(90deg,rgba(255,122,26,.22),rgba(255,122,26,.05))'
+				: 'rgba(255,255,255,.05)'
+	);
+	const dot = $derived(
+		view.accent === 'lime' ? '#c6ff3a' : view.accent === 'orange' ? '#ff7a1a' : '#8fa89b'
+	);
 </script>
 
-<div class="flex flex-wrap items-center gap-2 rounded-lg bg-zinc-50 p-2">
-	<span
-		class="rounded-full px-2.5 py-1 text-xs font-semibold {myTurn
-			? 'bg-green-700 text-white'
-			: 'bg-zinc-200 text-zinc-700'}"
-		aria-live="polite"
-	>
-		{myTurn ? m.play_your_turn() : m.play_their_turn()}
-	</span>
-	<span class="text-xs text-zinc-500">{m.play_remaining({ count: remaining })}</span>
-
-	{#if awaitingAnswer && !myTurn}
-		<span class="text-sm font-medium">{m.play_answer_prompt()}</span>
-		<button type="button" class={btnSolid} onclick={() => onAnswer(true)}
-			>{m.play_answer_yes()}</button
+<div
+	class="flex items-center justify-between gap-3 rounded-[14px] border-[1.5px] px-4 py-3.5 {bar}"
+	style="background:{barBg}"
+>
+	<div class="flex min-w-0 items-center gap-3.5">
+		<span
+			class="h-3.5 w-3.5 shrink-0 rounded-full"
+			style="background:{dot};{view.pulse ? 'animation:ringpulse 1.6s infinite' : ''}"
+			aria-hidden="true"
+		></span>
+		<div class="min-w-0">
+			<div class="font-display text-[26px] leading-none font-black uppercase" aria-live="polite">
+				{view.title}
+			</div>
+			<div class="mt-0.5 truncate text-[13px] font-semibold opacity-85">{view.sub}</div>
+		</div>
+	</div>
+	<div class="flex shrink-0 items-center gap-2">
+		<span class="hidden text-xs font-semibold opacity-80 sm:inline"
+			>{m.play_remaining({ count: remaining })}</span
 		>
-		<button type="button" class={btn} onclick={() => onAnswer(false)}>{m.play_answer_no()}</button>
-	{:else if awaitingAnswer && myTurn}
-		<span class="text-sm text-zinc-600">{m.play_awaiting_answer()}</span>
-	{:else if myTurn}
-		<form class="flex flex-wrap items-center gap-2" onsubmit={submit}>
-			<input
-				bind:value={question}
-				placeholder={m.play_ask_placeholder()}
-				class="min-w-48 flex-1 rounded-md border border-zinc-300 px-2 py-1.5 text-sm focus:border-green-600 focus:outline-none"
-			/>
-			<button type="submit" class={btnSolid}>{m.play_ask()}</button>
-		</form>
-		<button type="button" class={btn} onclick={onEndTurn}>{m.play_end_turn()}</button>
-		<button type="button" class={guessing ? btnSolid : btn} onclick={onToggleGuess}>
-			{guessing ? m.play_guess_cancel() : m.play_guess()}
+		<button
+			type="button"
+			onclick={onMyPlayer}
+			class="rounded-[10px] border border-white/[0.18] bg-black/25 px-3 py-2 text-[13px] font-bold text-inherit transition hover:bg-black/40"
+		>
+			{m.play_my_player()}
 		</button>
-	{:else}
-		<span class="text-sm text-zinc-600">{m.play_opponent_asking()}</span>
-	{/if}
+	</div>
 </div>
+
+{#if guessing}
+	<div
+		class="mt-3.5 flex items-center gap-2.5 rounded-xl border border-orange/45 bg-orange/[0.14] px-3.5 py-2.75 text-[#ffc79a]"
+		style="padding-top:11px;padding-bottom:11px"
+		role="status"
+	>
+		<span aria-hidden="true">🎯</span>
+		<span class="text-sm font-bold">{m.play_guess_hint()}</span>
+		<button
+			type="button"
+			onclick={onCancelGuess}
+			class="ml-auto rounded-lg border border-white/20 px-3 py-1.5 text-[13px] font-bold text-white transition hover:bg-white/10"
+		>
+			{m.play_guess_cancel()}
+		</button>
+	</div>
+{/if}

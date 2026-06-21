@@ -1,2 +1,145 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+
+/* footbol design tokens — dark "FUT/EAFC" pitch theme (design: footbol.dc.html) */
+@theme {
+	--color-pitch: #07150e;
+	--color-panel: #0c2018;
+	--color-panel2: #0e271e;
+	--color-ink: #0a1f08;
+	--color-lime: #c6ff3a;
+	--color-lime-dim: #7fae1f;
+	--color-orange: #ff7a1a;
+	--color-cloud: #eaf3ec;
+	--color-fog: #cfe0d5;
+	--color-mut: #9fb4a8;
+	--color-mut2: #8fa89b;
+	--color-mut3: #6f8a7a;
+
+	--font-display: 'Saira Condensed', system-ui, sans-serif;
+	--font-body: 'Hanken Grotesk', system-ui, sans-serif;
+}
+
+html,
+body {
+	background: var(--color-pitch);
+	color: var(--color-cloud);
+	font-family: var(--font-body);
+}
+
+::selection {
+	background: var(--color-lime);
+	color: var(--color-ink);
+}
+
+/* Animations from the design; all suppressed under reduced-motion. */
+@keyframes flood {
+	0%,
+	100% {
+		opacity: 0.45;
+	}
+	50% {
+		opacity: 0.85;
+	}
+}
+@keyframes drift {
+	0% {
+		transform: translate(-12vw, 8vh) rotate(0);
+	}
+	100% {
+		transform: translate(112vw, -4vh) rotate(360deg);
+	}
+}
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@keyframes dotpulse {
+	0%,
+	80%,
+	100% {
+		opacity: 0.2;
+		transform: scale(0.65);
+	}
+	40% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+@keyframes ringpulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba(198, 255, 58, 0.55);
+	}
+	100% {
+		box-shadow: 0 0 0 18px rgba(198, 255, 58, 0);
+	}
+}
+@keyframes fall {
+	0% {
+		transform: translateY(-18vh) rotate(0);
+	}
+	100% {
+		transform: translateY(108vh) rotate(720deg);
+	}
+}
+@keyframes rvIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+@keyframes rvUp {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@keyframes rvFlip {
+	from {
+		opacity: 0;
+		transform: perspective(400px) rotateX(90deg);
+	}
+	to {
+		opacity: 1;
+		transform: perspective(400px) rotateX(0);
+	}
+}
+@keyframes rvSlide {
+	from {
+		opacity: 0;
+		transform: translateX(18px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation: none !important;
+		transition: none !important;
+	}
+}
+
+/* shared bits reused across components */
+.panel {
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 9999px;
+	background: var(--color-mut2);
+	animation: dotpulse 1.2s infinite;
+}

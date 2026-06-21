@@ -28,7 +28,9 @@ export async function sampleBoard(
 		.select({
 			footballerId: footballer.id,
 			name: footballer.name,
-			photoKey: footballer.photoKey
+			photoKey: footballer.photoKey,
+			position: footballer.position,
+			nationality: footballer.nationality
 		})
 		.from(footballer)
 		.where(and(...filters))
@@ -53,7 +55,9 @@ export async function listPool(
 		.select({
 			footballerId: footballer.id,
 			name: footballer.name,
-			photoKey: footballer.photoKey
+			photoKey: footballer.photoKey,
+			position: footballer.position,
+			nationality: footballer.nationality
 		})
 		.from(footballer)
 		.where(and(...filters))

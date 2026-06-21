@@ -8,14 +8,15 @@
 	const current = $derived(getLocale());
 </script>
 
-<nav class="flex items-center gap-1 text-xs" aria-label={m.lang_label()}>
+<nav class="flex rounded-full bg-white/[0.06] p-[3px]" aria-label={m.lang_label()}>
 	{#each locales as locale (locale)}
 		<a
 			href={resolve(localizeHref(page.url.pathname, { locale }) as Pathname)}
 			aria-current={locale === current ? 'true' : undefined}
-			class="rounded px-1.5 py-0.5 font-medium uppercase {locale === current
-				? 'bg-green-700 text-white'
-				: 'text-zinc-500 hover:text-zinc-800'}"
+			class="rounded-full px-[11px] py-[5px] text-xs font-extrabold uppercase transition {locale ===
+			current
+				? 'bg-lime text-ink'
+				: 'text-mut hover:text-fog'}"
 		>
 			{locale}
 		</a>

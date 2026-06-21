@@ -5,29 +5,54 @@
 	interface Props {
 		entries: ChatEntry[];
 		players: Record<string, PlayerSlot>;
+		you: string;
 	}
 
-	let { entries, players }: Props = $props();
+	let { entries, players, you }: Props = $props();
 
 	const nameOf = (id: string) => players[id]?.name ?? '?';
 	const answerText = (text: string) => (text === 'yes' ? m.play_answer_yes() : m.play_answer_no());
+
+	type Side = 'system' | 'mine' | 'theirs-q' | 'theirs-a';
+	const sideOf = (e: ChatEntry): Side => {
+		if (e.kind === 'system') return 'system';
+		if (e.from === you) return 'mine';
+		return e.kind === 'question' ? 'theirs-q' : 'theirs-a';
+	};
+	const textOf = (e: ChatEntry) =>
+		e.kind === 'system'
+			? m.chat_joined({ name: nameOf(e.from) })
+			: e.kind === 'answer'
+				? answerText(e.text)
+				: e.text;
 </script>
 
-<section class="mt-4 border-t border-zinc-200 pt-3">
-	<h2 class="mb-1 text-sm font-semibold text-zinc-700">{m.chat_heading()}</h2>
-	<ol class="flex flex-col gap-1 text-sm" aria-live="polite">
-		{#each entries as entry (entry.id)}
-			<li>
-				{#if entry.kind === 'system'}
-					<span class="text-zinc-500 italic">{m.chat_joined({ name: nameOf(entry.from) })}</span>
-				{:else if entry.kind === 'answer'}
-					<span class="font-semibold text-green-800">{nameOf(entry.from)}:</span>
-					{answerText(entry.text)}
-				{:else}
-					<span class="font-semibold text-zinc-800">{nameOf(entry.from)}:</span>
-					{entry.text}
-				{/if}
-			</li>
-		{/each}
-	</ol>
-</section>
+<ol
+	class="flex flex-1 flex-col gap-2.5 overflow-y-auto p-4 text-sm"
+	aria-live="polite"
+	aria-label={m.chat_heading()}
+>
+	{#each entries as entry (entry.id)}
+		{@const side = sideOf(entry)}
+		<li
+			class="flex {side === 'mine'
+				? 'justify-end'
+				: side === 'system'
+					? 'justify-center'
+					: 'justify-start'}"
+		>
+			{#if side === 'system'}
+				<span class="text-xs text-[#7f9a89] italic">{textOf(entry)}</span>
+			{:else}
+				<span
+					class="max-w-[80%] px-3 py-2.25 text-sm leading-snug font-semibold {side === 'mine'
+						? 'rounded-[14px_14px_4px_14px] bg-lime text-ink'
+						: side === 'theirs-q'
+							? 'rounded-[14px_14px_14px_4px] bg-orange/[0.16] text-[#ffc79a]'
+							: 'rounded-[14px_14px_14px_4px] bg-white/10 text-cloud'}"
+					style="padding-top:9px;padding-bottom:9px">{textOf(entry)}</span
+				>
+			{/if}
+		</li>
+	{/each}
+</ol>
