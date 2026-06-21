@@ -29,7 +29,12 @@ export default defineConfig({
 				})
 			}
 		}),
-		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' })
+		paraglideVitePlugin({
+			project: './project.inlang',
+			outdir: './src/lib/paraglide',
+			// URL prefix (/es/...) drives the locale, then a saved cookie, else baseLocale.
+			strategy: ['url', 'cookie', 'baseLocale']
+		})
 	],
 	test: {
 		expect: { requireAssertions: true },

@@ -70,17 +70,19 @@ Goal: state syncs live between two clients through the Durable Object.
 
 Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 
-- [ ] Home `/`: name, create (pool picker), join by code/link. ([06](./06-frontend.md))
-- [ ] `Lobby` (share link, waiting, start). ([06](./06-frontend.md))
-- [ ] `GameView`: `Board`/`Card` (flip), `Chat` (ask/answer), `TurnBar`, `GuessDialog`. ([06](./06-frontend.md))
-- [ ] Turn-based chat Q&A; manual private flipping (persisted via DO state). ([03](./03-realtime-and-game-logic.md))
-- [ ] Final guess → win/lose; `GameOver` with secret reveal + rematch. ([03](./03-realtime-and-game-logic.md))
-- [ ] Reconnect restores board + eliminations; opponent-left grace UI. ([03](./03-realtime-and-game-logic.md), [06](./06-frontend.md))
-- [ ] All strings in `en.json` + `es.json`; `LangSwitcher`. ([06](./06-frontend.md))
-- [ ] Component tests on critical path + one E2E happy path. ([08](./08-testing.md))
-- [ ] Deploy to Cloudflare; seed prod catalog. ([09](./09-deployment.md))
+- [x] Home `/`: name (cookie-persisted), create (pool picker), join by code/link; form actions in `+page.server.ts`. ([06](./06-frontend.md))
+- [x] `Lobby` (share link + copy, code, players, waiting). Start is automatic on 2nd join. ([06](./06-frontend.md))
+- [x] `GameView`: `Board`/`Card` (flip, `aria-pressed`), `Chat` (ask/answer), `TurnBar`, `GuessDialog` (modal confirm) — Tailwind-styled. ([06](./06-frontend.md))
+- [x] Turn-based chat Q&A; manual private flipping (optimistic + persisted via DO state). ([03](./03-realtime-and-game-logic.md))
+- [x] Final guess → win/lose; `GameOver` with secret reveal + rematch. ([03](./03-realtime-and-game-logic.md))
+- [x] Reconnect restores board + eliminations (RoomSocket backoff + DO `reconnect`); `ConnectionBadge` opponent-left grace UI; fatal close (room full / unauthorized) surfaced. ([03](./03-realtime-and-game-logic.md), [06](./06-frontend.md))
+- [x] All strings in `en.json` + `es.json`; `LangSwitcher`; URL-prefix locale strategy (`['url','cookie','baseLocale']`). ([06](./06-frontend.md))
+- [x] Component tests on critical path (`Card`, `TurnBar`, `GuessDialog` — 9 browser tests). [ ] one E2E happy path (Playwright two-context) — **remaining**. ([08](./08-testing.md))
+- [ ] Deploy to Cloudflare; seed prod catalog — **remaining** (needs CF account/secrets). ([09](./09-deployment.md))
 
-**Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally.
+**Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally. **Locally ✅** (`dev:full` + `smoke:ws`; bilingual UI verified EN/ES). **Live URL pending deploy.** `check`/`lint`/`test` (41)/`build`/dry-run green.
+
+> **Phase 4 decisions:** display name is **cookie-persisted** (`fb_name`), not written to the auth user row — identity stays `user.id`, name is cosmetic. Home create generates the code client-redirect-side (`303 → /play/[code]?pool=`); the pool rides the query to the DO's first connect. Remaining closeout: a Playwright two-browser-context E2E happy path, and the Cloudflare deploy + prod seed (both need real credentials).
 
 ## Phase 5 — Polish
 

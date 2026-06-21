@@ -35,6 +35,7 @@ export class RoomSocket {
 		reveal: Record<string, string>;
 	} | null>(null);
 	error = $state<string | null>(null);
+	fatal = $state<string | null>(null); // a non-recoverable close (e.g. room_full, unauthorized)
 
 	#ws: WebSocket | null = null;
 	#init: RoomSocketInit;
@@ -70,8 +71,14 @@ export class RoomSocket {
 			this.#send({ t: 'hello', token: this.#init.wsToken, name: me.name });
 		};
 		ws.onmessage = (e) => this.#onMessage(JSON.parse(e.data) as ServerMessage);
-		ws.onclose = () => {
+		ws.onclose = (e) => {
 			this.connected = false;
+			// 4001 unauthorized, 4002 room_full — don't retry; surface the reason.
+			if (e.code === 4001 || e.code === 4002) {
+				this.fatal = e.reason || 'error';
+				this.#closed = true;
+				return;
+			}
 			if (!this.#closed) this.#scheduleReconnect();
 		};
 		ws.onerror = () => ws.close();
