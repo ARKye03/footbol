@@ -25,6 +25,7 @@
 		"seed:local": "tsx scripts/seed.ts",
 		"sync:local": "tsx scripts/sync.ts",
 		"smoke:ws": "tsx scripts/ws-smoke.ts",
+		"e2e": "vite build && tsx scripts/e2e.ts",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
 	},
 	"devDependencies": {

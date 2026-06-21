@@ -100,6 +100,7 @@ export class RoomSocket {
 			case 'patch':
 				if (msg.phase) this.phase = msg.phase;
 				if (msg.turn !== undefined) this.turn = msg.turn;
+				if (msg.awaitingAnswer !== undefined) this.awaitingAnswer = msg.awaitingAnswer;
 				if (msg.chat) this.chat = [...this.chat, msg.chat];
 				break;
 			case 'opponentLeft':

@@ -137,7 +137,10 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			next.version++;
 			const chat = mkChat(next, cmd.playerId, 'question', cmd.text.trim(), now);
 			next.chat.push(chat);
-			return { state: next, broadcast: [{ t: 'patch', version: next.version, chat }] };
+			return {
+				state: next,
+				broadcast: [{ t: 'patch', version: next.version, chat, awaitingAnswer: true }]
+			};
 		}
 
 		case 'answer': {
@@ -150,7 +153,10 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			next.version++;
 			const chat = mkChat(next, cmd.playerId, 'answer', cmd.value ? 'yes' : 'no', now);
 			next.chat.push(chat);
-			return { state: next, broadcast: [{ t: 'patch', version: next.version, chat }] };
+			return {
+				state: next,
+				broadcast: [{ t: 'patch', version: next.version, chat, awaitingAnswer: false }]
+			};
 		}
 
 		case 'endTurn': {

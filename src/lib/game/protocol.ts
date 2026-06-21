@@ -17,7 +17,14 @@ export type ClientMessage =
 
 export type ServerMessage =
 	| { t: 'state'; state: PublicGameState; you: string } // full snapshot (on connect / phase change)
-	| { t: 'patch'; version: number; chat?: ChatEntry; turn?: string | null; phase?: Phase } // small deltas
+	| {
+			t: 'patch';
+			version: number;
+			chat?: ChatEntry;
+			turn?: string | null;
+			phase?: Phase;
+			awaitingAnswer?: boolean;
+	  } // small deltas
 	| { t: 'opponentLeft'; graceMs: number }
 	| { t: 'opponentBack' }
 	| { t: 'gameOver'; winnerId: string | null; reason: string; secretReveal: Record<string, string> }

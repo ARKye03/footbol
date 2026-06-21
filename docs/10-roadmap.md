@@ -77,12 +77,14 @@ Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 - [x] Final guess → win/lose; `GameOver` with secret reveal + rematch. ([03](./03-realtime-and-game-logic.md))
 - [x] Reconnect restores board + eliminations (RoomSocket backoff + DO `reconnect`); `ConnectionBadge` opponent-left grace UI; fatal close (room full / unauthorized) surfaced. ([03](./03-realtime-and-game-logic.md), [06](./06-frontend.md))
 - [x] All strings in `en.json` + `es.json`; `LangSwitcher`; URL-prefix locale strategy (`['url','cookie','baseLocale']`). ([06](./06-frontend.md))
-- [x] Component tests on critical path (`Card`, `TurnBar`, `GuessDialog` — 9 browser tests). [ ] one E2E happy path (Playwright two-context) — **remaining**. ([08](./08-testing.md))
+- [x] Component tests on critical path (`Card`, `TurnBar`, `GameControls`, `GuessDialog`) + an **E2E happy path** (`scripts/e2e.ts`, `pnpm e2e`): two Playwright contexts → create/join, dismiss reveal, Q&A round-trip, guess, both reach game over. ([08](./08-testing.md))
 - [ ] Deploy to Cloudflare; seed prod catalog — **remaining** (needs CF account/secrets). ([09](./09-deployment.md))
 
-**Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally. **Locally ✅** (`dev:full` + `smoke:ws`; bilingual UI verified EN/ES). **Live URL pending deploy.** `check`/`lint`/`test` (44)/`build`/dry-run green.
+**Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally. **Locally ✅** (`dev:full` + `smoke:ws` + `e2e`; bilingual UI verified EN/ES). **Live URL pending deploy.** `check`/`lint`/`test` (44)/`build`/`e2e`/dry-run green.
 
-> **Phase 4 decisions:** display name is **cookie-persisted** (`fb_name`), not written to the auth user row — identity stays `user.id`, name is cosmetic. Home create generates the code client-redirect-side (`303 → /play/[code]?pool=`); the pool rides the query to the DO's first connect. Remaining closeout: a Playwright two-browser-context E2E happy path, and the Cloudflare deploy + prod seed (both need real credentials).
+> **Phase 4 decisions:** display name is **cookie-persisted** (`fb_name`), not written to the auth user row — identity stays `user.id`, name is cosmetic. Home create generates the code client-redirect-side (`303 → /play/[code]?pool=`); the pool rides the query to the DO's first connect. Only remaining closeout: Cloudflare deploy + prod seed (needs real credentials).
+
+> **Bug found by the E2E (fixed):** `ask`/`answer` broadcast a `patch` that didn't carry `awaitingAnswer`, so the answerer's UI never entered answer mode (only full `state` snapshots synced the flag; `smoke:ws` drives raw protocol so it never caught it). Fix: `patch` now carries optional `awaitingAnswer`, `reduce` sets it on ask (`true`)/answer (`false`), `room-socket` applies it.
 
 > **Design pass (post-Phase-4):** the baseline Tailwind UI was fully restyled to an imported design (`footbol.dc.html`, claude.ai/design) — dark "FUT/EAFC" pitch theme (lime `#c6ff3a` / orange `#ff7a1a` on `#07150e`), Saira Condensed + Hanken Grotesk, theme tokens in `layout.css`. New building blocks: `lib/flags.ts` (country→emoji), `BoardCard` enriched with optional `position`/`nationality` (catalog selects them), `Reveal.svelte` (staged EAFC card reveal), `SecretCard.svelte`, `GameControls.svelte` (ask/answer footer split out of `TurnBar`), `/login` route. This work knocks out most of **Phase 5** and part of **Phase 6** (see below).
 
