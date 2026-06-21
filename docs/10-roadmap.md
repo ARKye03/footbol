@@ -78,7 +78,7 @@ Goal: a fun, complete game end-to-end, EN/ES, on a deployed URL.
 - [x] Reconnect restores board + eliminations (RoomSocket backoff + DO `reconnect`); `ConnectionBadge` opponent-left grace UI; fatal close (room full / unauthorized) surfaced. ([03](./03-realtime-and-game-logic.md), [06](./06-frontend.md))
 - [x] All strings in `en.json` + `es.json`; `LangSwitcher`; URL-prefix locale strategy (`['url','cookie','baseLocale']`). ([06](./06-frontend.md))
 - [x] Component tests on critical path (`Card`, `TurnBar`, `GameControls`, `GuessDialog`) + an **E2E happy path** (`scripts/e2e.ts`, `pnpm e2e`): two Playwright contexts → create/join, dismiss reveal, Q&A round-trip, guess, both reach game over. ([08](./08-testing.md))
-- [ ] Deploy to Cloudflare; seed prod catalog — **remaining** (needs CF account/secrets). ([09](./09-deployment.md))
+- [ ] Deploy to Cloudflare; seed prod catalog — **deferred** (local-only for now; needs CF account/secrets). Tooling ready: deploy runbook ([09](./09-deployment.md)) + `pnpm seed:remote` (`scripts/seed-remote.ts` pushes the sample catalog to remote D1/R2 via `wrangler --remote`).
 
 **Done when:** two people open a link and play a full bilingual game start to finish on the live URL — and locally. **Locally ✅** (`dev:full` + `smoke:ws` + `e2e`; bilingual UI verified EN/ES). **Live URL pending deploy.** `check`/`lint`/`test` (44)/`build`/`e2e`/dry-run green.
 

@@ -23,6 +23,7 @@
 		"db:migrate:remote": "wrangler d1 migrations apply footbol-db --remote",
 		"db:studio": "drizzle-kit studio",
 		"seed:local": "tsx scripts/seed.ts",
+		"seed:remote": "tsx scripts/seed-remote.ts",
 		"sync:local": "tsx scripts/sync.ts",
 		"smoke:ws": "tsx scripts/ws-smoke.ts",
 		"e2e": "vite build && tsx scripts/e2e.ts",
