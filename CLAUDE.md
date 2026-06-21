@@ -1,20 +1,21 @@
 # CLAUDE.md
 
-Guide Claude Code (claude.ai/code) for code in this repo.
+Guide Claude Code (claude.ai/code) for code this repo.
 
 ## Project
 
-**footbol** — web, real-time multiplayer "Quién es quién" (Guess Who?) for football/soccer players. Two players join private room, each get secret player, take turns asking Yes/No questions to eliminate candidates till guess opponent player.
+**footbol** — web, real-time multiplayer "Quién es quién" (Guess Who?) for football/soccer players. Two players join private room, each get secret player, take turns asking Yes/No questions to eliminate candidates till guess opponent.
 
-Target runtime: Cloudflare edge — WebSockets + Durable Objects for live room sync, D1 for persistence, R2 for headshots, API-Football for player data. **Phase 0 done** (docs/10): bindings wired, `src/worker.ts` re-export + `GameRoom` DO stub, anonymous-guest auth, `footballer`/`gameRecord` schema migrated to local D1. Not built yet: game logic + UI (WS protocol, real DO, board, R2 images, API-Football — Phases 1–4). `demo/` routes removed.
+Target runtime: Cloudflare edge — WebSockets + Durable Objects for live room sync, D1 persistence, R2 headshots, API-Football for player data. **MVP shipped locally (Phases 0–4, docs/10):** real `GameRoom` DO (WS hibernation), pure `rules.ts` state machine, board + private flips + chat Q&A + guess/reveal/rematch UI, guest auth + `/login`, dark FUT redesign, EN/ES, catalog ingestion. Verified locally via `dev:full` + `smoke:ws` + `e2e`. **Deferred:** Cloudflare deploy + prod seed (needs CF creds). **Next gameplay change:** advanced match rules in `docs/11-game-rules.md` — current `rules.ts` still simpler win/lose model. `demo/` routes removed.
 
 ## Implementation plan
 
-Full build plan in **`docs/`** — read before building game features so you build _to_ recorded decisions, not re-derive.
+Full build plan in **`docs/`** — read before building game features so build _to_ recorded decisions, not re-derive.
 
 - [`docs/README.md`](docs/README.md) — index + locked decisions (one Worker, Durable Object re-exported from `src/worker.ts`; guests via Better Auth `anonymous` plugin; free-chat MVP questions; pure testable rules module).
 - [`docs/10-roadmap.md`](docs/10-roadmap.md) — phased tasks; **MVP = end of Phase 4**. Phase 0 wires missing bindings + dual local-dev modes.
 - [`docs/07-local-development.md`](docs/07-local-development.md) — `vite dev` (platformProxy, no live WS) vs `pnpm dev:full` (`wrangler dev`, real Durable Object multiplayer).
+- [`docs/11-game-rules.md`](docs/11-game-rules.md) — **target** match rules (penalty phase, first-mover equalizer, draws). Shipped game simpler model; this spec to migrate `rules.ts` to.
 
 ## Commands
 
@@ -22,6 +23,7 @@ Package manager **pnpm**. Use it, not npm/yarn.
 
 ```sh
 pnpm dev                 # vite dev server
+pnpm dev:full            # vite build + wrangler dev — real Durable Object multiplayer
 pnpm build               # wrangler types --check, then vite build
 pnpm preview             # run the built worker locally via wrangler dev
 pnpm check               # wrangler types --check + svelte-kit sync + svelte-check
@@ -34,11 +36,16 @@ pnpm test:unit           # vitest watch mode
 pnpm test:unit -- --run --project=server          # only the server (node) project
 pnpm test:unit -- --run --project=client          # only the client (browser) project
 pnpm test:unit -- --run src/path/to/file.spec.ts  # a single file
+pnpm smoke:ws            # raw two-client WebSocket protocol smoke test (needs dev:full running)
+pnpm e2e                 # vite build + two-context Playwright happy-path
 
 pnpm db:push             # push drizzle schema to D1 (no migration files)
 pnpm db:generate         # generate SQL migration from schema changes
 pnpm db:migrate          # apply migrations to D1
+pnpm db:migrate:local    # apply migrations to local D1 (wrangler; no creds needed)
 pnpm db:studio           # drizzle studio
+pnpm seed:local          # seed sample footballers + headshots into local D1/R2
+pnpm sync:local          # pull real players from API-Football -> local D1/R2 (needs API_FOOTBALL_KEY)
 pnpm auth:schema         # regenerate src/lib/server/db/auth.schema.ts from auth config
 ```
 
@@ -55,17 +62,17 @@ pnpm auth:schema         # regenerate src/lib/server/db/auth.schema.ts from auth
 1. **handleParaglide** runs `paraglideMiddleware`, replaces `%paraglide.lang%` / `%paraglide.dir%` in `app.html`.
 2. **handleBetterAuth** requires D1 binding `DB` on `event.platform.env`, builds per-request auth instance with `createAuth(env.DB)`, stores on `event.locals.auth`, populates `event.locals.user` / `event.locals.session` from session.
 
-`src/hooks.ts` `reroute` de-localizes URL pathname so locale-prefixed routes resolve to same route tree.
+`src/hooks.ts` `reroute` de-localizes URL pathname so locale-prefixed routes resolve same route tree.
 
 ### Auth (`src/lib/server/auth.ts`)
 
-better-auth (`betterAuth/minimal`) with Drizzle D1 adapter, email/password on. **Auth per-request** — always use `event.locals.auth`, never import module-level `auth` export (it `createAuth(null!)` dummy, exists only so better-auth CLI generate schema). Config reads `ORIGIN` (baseURL) + `BETTER_AUTH_SECRET` from `$env/dynamic/private`. Server-side auth calls go through `auth.api.*` (e.g. `signInAnonymous`, `signInEmail`, `signOut`, `getSession`). `anonymous` plugin on; `handleSession` (`hooks.server.ts`) mints a guest so `event.locals.user` is always set (skips `/img`, `/ws`, `/favicon` to avoid junk rows).
+better-auth (`betterAuth/minimal`) with Drizzle D1 adapter, email/password on. **Auth per-request** — always use `event.locals.auth`, never import module-level `auth` export (it `createAuth(null!)` dummy, exists only so better-auth CLI generate schema). Config reads `ORIGIN` (baseURL) + `BETTER_AUTH_SECRET` from `$env/dynamic/private`. Server-side auth calls go through `auth.api.*` (e.g. `signInAnonymous`, `signInEmail`, `signOut`, `getSession`). `anonymous` plugin on; `handleSession` (`hooks.server.ts`) mints guest so `event.locals.user` always set (skips `/img`, `/ws`, `/favicon` to avoid junk rows).
 
 ### Database (`src/lib/server/db/`)
 
-Drizzle ORM over **Cloudflare D1**. `getDb(d1)` wraps runtime `D1Database`; D1 only reachable via `event.platform.env.DB`, so DB access lives in server hooks/load/actions, not module top level. `schema.ts` holds app tables (`footballer`, `gameRecord`), re-exports `auth.schema.ts` (generated by `pnpm auth:schema` — no hand-edit). Migration flow: edit `schema.ts` → `pnpm db:generate` (writes `drizzle/*.sql`; offline, but `drizzle.config.ts` _throws_ unless `CLOUDFLARE_*` env vars are present — dummy values are fine for generate) → `pnpm db:migrate:local` (wrangler, no creds needed). `db:*:remote`/`db:studio` need real `CLOUDFLARE_ACCOUNT_ID`/`_DATABASE_ID`/`_D1_TOKEN`.
+Drizzle ORM over **Cloudflare D1**. `getDb(d1)` wraps runtime `D1Database`; D1 only reachable via `event.platform.env.DB`, so DB access lives in server hooks/load/actions, not module top level. `schema.ts` holds app tables (`footballer`, `gameRecord`), re-exports `auth.schema.ts` (generated by `pnpm auth:schema` — no hand-edit). Migration flow: edit `schema.ts` → `pnpm db:generate` (writes `drizzle/*.sql`; offline, but `drizzle.config.ts` _throws_ unless `CLOUDFLARE_*` env vars present — dummy values fine for generate) → `pnpm db:migrate:local` (wrangler, no creds needed). `db:*:remote`/`db:studio` need real `CLOUDFLARE_ACCOUNT_ID`/`_DATABASE_ID`/`_D1_TOKEN`.
 
-> **Worker build seam (docs/01):** adapter-cloudflare v7 overwrites whatever `main` points at, so it builds against a separate **`wrangler.adapter.jsonc`** (emits `.svelte-kit/cloudflare/_worker.js`) while `wrangler.jsonc` (`main: ./src/worker.ts` + bindings) drives dev/deploy. `src/worker.ts` re-exports that worker + routes `/ws/*` → `GAME_ROOM` DO. Needs `nodejs_compat` + `tsconfig` `checkJs: false`. Keep the two configs' `compatibility_*` in sync.
+> **Worker build seam (docs/01):** adapter-cloudflare v7 overwrites whatever `main` points at, so builds against separate **`wrangler.adapter.jsonc`** (emits `.svelte-kit/cloudflare/_worker.js`) while `wrangler.jsonc` (`main: ./src/worker.ts` + bindings) drives dev/deploy. `src/worker.ts` re-exports that worker + routes `/ws/*` → `GAME_ROOM` DO. Needs `nodejs_compat` + `tsconfig` `checkJs: false`. Keep two configs' `compatibility_*` in sync.
 
 ### i18n (Paraglide)
 
@@ -87,7 +94,7 @@ Use **`runes-reviewer`** subagent (`.claude/agents/`) after writing Svelte — f
 
 ## Svelte MCP server
 
-You have Svelte MCP server with Svelte 5 / SvelteKit docs. Use it:
+Svelte MCP server with Svelte 5 / SvelteKit docs. Use it:
 
 1. **list-sections** — call FIRST for any Svelte/SvelteKit question to discover doc sections (returns titles, use_cases, paths).
 2. **get-documentation** — fetch full content for relevant sections found above (analyze `use_cases`, fetch ALL relevant).
