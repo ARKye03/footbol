@@ -20,22 +20,25 @@
 
 	let { result, order, you, board, onRematch, onLeave }: Props = $props();
 
-	const won = $derived(result.winnerId === you);
+	const draw = $derived(result.winnerId === null);
+	const won = $derived(!draw && result.winnerId === you);
 	const title = $derived(
-		won
-			? m.gameover_you_won()
-			: result.winnerId === null
-				? m.gameover_over()
-				: m.gameover_you_lost()
+		draw ? m.gameover_draw() : won ? m.gameover_you_won() : m.gameover_you_lost()
 	);
-	const titleColor = $derived(won ? '#c6ff3a' : '#ff7a1a');
+	const titleColor = $derived(draw ? '#8fa89b' : won ? '#c6ff3a' : '#ff7a1a');
 
 	const reasonText = (reason: string): string => {
 		switch (reason) {
-			case 'correct_guess':
-				return m.gameover_reason_correct_guess();
-			case 'wrong_guess':
-				return m.gameover_reason_wrong_guess();
+			case 'guess_win':
+				return m.gameover_reason_guess_win();
+			case 'equalizer_held':
+				return m.gameover_reason_equalizer_held();
+			case 'equalizer_draw':
+				return m.gameover_reason_equalizer_draw();
+			case 'penalty_win':
+				return m.gameover_reason_penalty_win();
+			case 'penalty_draw':
+				return m.gameover_reason_penalty_draw();
 			case 'forfeit':
 				return m.gameover_reason_forfeit();
 			default:
