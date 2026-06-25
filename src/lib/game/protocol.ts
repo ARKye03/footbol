@@ -3,7 +3,7 @@
  * by the client and the Durable Object so the wire types can't drift. Pure — no
  * Cloudflare imports.
  */
-import type { ChatEntry, GameState, Phase, PlayerSlot } from './state';
+import type { ChatEntry, GameState, PenaltyState, Phase, PlayerSlot } from './state';
 
 export type ClientMessage =
 	| { t: 'hello'; token: string; name: string } // session token authenticates the socket; name is the display name
@@ -24,6 +24,7 @@ export type ServerMessage =
 			turn?: string | null;
 			phase?: Phase;
 			awaitingAnswer?: boolean;
+			penalty?: PenaltyState | null; // present when entering the penalty phase (docs/11)
 	  } // small deltas
 	| { t: 'opponentLeft'; graceMs: number }
 	| { t: 'opponentBack' }

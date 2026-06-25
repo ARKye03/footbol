@@ -204,14 +204,54 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 				return fail(state, 'unknown_card');
 			const next = clone(state);
 			const correct = cmd.footballerId === next.players[opp].secretId;
-			next.winnerId = correct ? cmd.playerId : opp;
-			// Placeholder mapping — the full equalizer/penalty decision table is issue #5.
-			next.endReason = correct ? 'guess_win' : 'forfeit';
-			next.phase = 'finished';
-			next.turn = null;
+			const isStarter = cmd.playerId === next.starterId;
+			const [first, second] = next.order;
 			next.awaitingAnswer = false;
+			next.answeredThisTurn = false;
 			next.version++;
-			return { state: next, broadcast: [gameOver(next)] };
+
+			// docs/11 § "Guess resolution — the two constraints". A wrong guess never
+			// hands the opponent an instant win; it opens the one-sided Penalty phase.
+			// The equalizer/penalty phase handlers (resolving the win/draw) are #4/#5;
+			// here we only transition INTO those phases.
+			if (isStarter && correct) {
+				// S guessed right: T is owed one symmetric attempt. Not a win yet.
+				next.phase = 'equalizer';
+				next.turn = second;
+				return {
+					state: next,
+					broadcast: [{ t: 'patch', version: next.version, phase: 'equalizer', turn: second }]
+				};
+			}
+			if (!isStarter && correct) {
+				// T guessed right on a normal turn: wins outright, no equalizer for S.
+				next.winnerId = cmd.playerId;
+				next.endReason = 'guess_win';
+				next.phase = 'finished';
+				next.turn = null;
+				return { state: next, broadcast: [gameOver(next)] };
+			}
+			// Wrong guess (S or T): the guesser is out, the opponent enters the Penalty phase.
+			const survivor = isStarter ? second : first;
+			next.phase = 'penalty';
+			next.penalty = {
+				asker: survivor,
+				answerer: cmd.playerId,
+				questionsRemaining: next.config.penaltyQuestions
+			};
+			next.turn = survivor;
+			return {
+				state: next,
+				broadcast: [
+					{
+						t: 'patch',
+						version: next.version,
+						phase: 'penalty',
+						turn: survivor,
+						penalty: next.penalty
+					}
+				]
+			};
 		}
 
 		case 'forfeit': {

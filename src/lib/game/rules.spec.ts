@@ -160,30 +160,89 @@ const askAnswered = (state: GameState, asker: string, answerer: string): GameSta
 		{ t: 'answer', playerId: answerer, value: true }
 	]);
 
-describe('guess', () => {
-	it('correct guess wins and finishes with a full secret reveal', () => {
+/** A board id that is NOT the given player's secret (a guaranteed-wrong guess target). */
+const wrongCard = (s: GameState, holder: string): string =>
+	s.board.map((c) => c.footballerId).find((id) => id !== s.players[holder].secretId)!;
+
+/**
+ * Guess decision table (docs/11 § "Guess resolution — the two constraints", issue #3).
+ * Starter S = order[0] = 'a'; Second T = order[1] = 'b'. A wrong guess never hands the
+ * opponent an instant win — it opens the Penalty phase. The equalizer/penalty endpoints
+ * (final winner/draw) resolve in #4/#5, so here we assert the transition only.
+ */
+describe('guess decision table', () => {
+	it('starter + correct → equalizer for T, no winner yet (does not finish)', () => {
 		const s = askAnswered(playing(), 'a', 'b');
 		const target = s.players.b.secretId!;
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1);
+		expect(r.state.phase).toBe('equalizer');
+		expect(r.state.turn).toBe('b'); // order[1]
+		expect(r.state.winnerId).toBeNull();
+		expect(r.state.endReason).toBeNull();
+		expect(r.state.penalty).toBeNull();
+		expect(r.broadcast).toEqual([
+			{ t: 'patch', version: r.state.version, phase: 'equalizer', turn: 'b' }
+		]);
+	});
+
+	it('starter + wrong → penalty opens for T, no instant opponent win', () => {
+		const s = askAnswered(playing(), 'a', 'b');
+		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrongCard(s, 'b') }, 1);
+		expect(r.state.phase).toBe('penalty');
+		expect(r.state.turn).toBe('b'); // survivor = order[1] asks
+		expect(r.state.winnerId).toBeNull(); // wrong guess no longer hands B the win
+		expect(r.state.endReason).toBeNull();
+		expect(r.state.penalty).toEqual({ asker: 'b', answerer: 'a', questionsRemaining: 5 });
+		expect(r.broadcast).toEqual([
+			{
+				t: 'patch',
+				version: r.state.version,
+				phase: 'penalty',
+				turn: 'b',
+				penalty: { asker: 'b', answerer: 'a', questionsRemaining: 5 }
+			}
+		]);
+	});
+
+	it('second + correct → T wins immediately with a full secret reveal', () => {
+		// Rotate the turn to T (b) and ask-answer so b may act.
+		let s = askAnswered(playing(), 'a', 'b');
+		s = play(s, [{ t: 'endTurn', playerId: 'a' }]);
+		s = askAnswered(s, 'b', 'a');
+		const target = s.players.a.secretId!;
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: target }, 1);
 		expect(r.state.phase).toBe('finished');
-		expect(r.state.winnerId).toBe('a');
+		expect(r.state.winnerId).toBe('b');
 		expect(r.state.endReason).toBe('guess_win');
 		expect(r.broadcast).toEqual([
 			{
 				t: 'gameOver',
-				winnerId: 'a',
+				winnerId: 'b',
 				reason: 'guess_win',
 				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
 			}
 		]);
 	});
 
-	it('wrong guess hands the win to the opponent', () => {
-		const s = askAnswered(playing(), 'a', 'b');
-		const wrong = s.board.map((c) => c.footballerId).find((id) => id !== s.players.b.secretId)!;
-		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrong }, 1);
-		expect(r.state.winnerId).toBe('b');
-		expect(r.state.endReason).toBe('forfeit');
+	it('second + wrong → penalty opens for S, no instant opponent win', () => {
+		let s = askAnswered(playing(), 'a', 'b');
+		s = play(s, [{ t: 'endTurn', playerId: 'a' }]);
+		s = askAnswered(s, 'b', 'a');
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: wrongCard(s, 'a') }, 1);
+		expect(r.state.phase).toBe('penalty');
+		expect(r.state.turn).toBe('a'); // survivor = order[0] asks
+		expect(r.state.winnerId).toBeNull();
+		expect(r.state.endReason).toBeNull();
+		expect(r.state.penalty).toEqual({ asker: 'a', answerer: 'b', questionsRemaining: 5 });
+		expect(r.broadcast).toEqual([
+			{
+				t: 'patch',
+				version: r.state.version,
+				phase: 'penalty',
+				turn: 'a',
+				penalty: { asker: 'a', answerer: 'b', questionsRemaining: 5 }
+			}
+		]);
 	});
 
 	it('only the turn owner may guess', () => {
@@ -203,9 +262,10 @@ describe('guess', () => {
 			'awaiting_answer'
 		);
 		const answered = reduce(asked, { t: 'answer', playerId: 'b', value: true }, 2).state;
+		// S + correct now opens the equalizer rather than finishing outright.
 		expect(
 			reduce(answered, { t: 'guess', playerId: 'a', footballerId: target }, 3).state.phase
-		).toBe('finished');
+		).toBe('equalizer');
 	});
 });
 
@@ -256,23 +316,22 @@ describe('totality', () => {
 });
 
 describe('full game script', () => {
-	it('plays join → start → Q&A rounds → correct guess', () => {
+	it('plays join → start → Q&A rounds → second player guesses correctly to win', () => {
 		let s = playing();
 		s = play(s, [
 			{ t: 'ask', playerId: 'a', text: 'goalkeeper?' },
 			{ t: 'answer', playerId: 'b', value: false },
 			{ t: 'endTurn', playerId: 'a' },
+			// b's turn: must ask-and-be-answered before guessing (issue #2)
 			{ t: 'ask', playerId: 'b', text: 'midfielder?' },
-			{ t: 'answer', playerId: 'a', value: true },
-			{ t: 'endTurn', playerId: 'b' },
-			// back to a: must ask-and-be-answered again before guessing (issue #2)
-			{ t: 'ask', playerId: 'a', text: 'striker?' },
-			{ t: 'answer', playerId: 'b', value: true }
+			{ t: 'answer', playerId: 'a', value: true }
 		]);
-		expect(s.turn).toBe('a');
-		expect(s.turns).toBe(2);
-		const final = reduce(s, { t: 'guess', playerId: 'a', footballerId: s.players.b.secretId! }, 99);
+		expect(s.turn).toBe('b');
+		expect(s.turns).toBe(1);
+		// Second player (T) guessing correctly wins outright (docs/11, issue #3).
+		const final = reduce(s, { t: 'guess', playerId: 'b', footballerId: s.players.a.secretId! }, 99);
 		expect(final.state.phase).toBe('finished');
-		expect(final.state.winnerId).toBe('a');
+		expect(final.state.winnerId).toBe('b');
+		expect(final.state.endReason).toBe('guess_win');
 	});
 });
