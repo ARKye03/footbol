@@ -128,6 +128,11 @@ describe('endTurn', () => {
 		const ended = reduce(answered, { t: 'endTurn', playerId: 'a' }, 3).state;
 		expect(ended.turn).toBe('b');
 		expect(ended.turns).toBe(1);
+		expect(ended.answeredThisTurn).toBe(false); // reset on rotation (issue #2)
+	});
+
+	it('rejects a pass before an ask-answer cycle (issue #2)', () => {
+		expect(reduce(playing(), { t: 'endTurn', playerId: 'a' }, 1).error).toBe('must_ask_first');
 	});
 });
 
@@ -148,9 +153,16 @@ describe('flip', () => {
 	});
 });
 
+/** A turn owner must ask-and-be-answered before acting (issue #2). */
+const askAnswered = (state: GameState, asker: string, answerer: string): GameState =>
+	play(state, [
+		{ t: 'ask', playerId: asker, text: 'q' },
+		{ t: 'answer', playerId: answerer, value: true }
+	]);
+
 describe('guess', () => {
 	it('correct guess wins and finishes with a full secret reveal', () => {
-		const s = playing();
+		const s = askAnswered(playing(), 'a', 'b');
 		const target = s.players.b.secretId!;
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1);
 		expect(r.state.phase).toBe('finished');
@@ -167,7 +179,7 @@ describe('guess', () => {
 	});
 
 	it('wrong guess hands the win to the opponent', () => {
-		const s = playing();
+		const s = askAnswered(playing(), 'a', 'b');
 		const wrong = s.board.map((c) => c.footballerId).find((id) => id !== s.players.b.secretId)!;
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrong }, 1);
 		expect(r.state.winnerId).toBe('b');
@@ -178,6 +190,22 @@ describe('guess', () => {
 		expect(reduce(playing(), { t: 'guess', playerId: 'b', footballerId: 'f0' }, 1).error).toBe(
 			'not_your_turn'
 		);
+	});
+
+	it('rejects a guess before an ask-answer cycle, allows it after (issue #2)', () => {
+		const s = playing();
+		const target = s.players.b.secretId!;
+		expect(reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1).error).toBe(
+			'must_ask_first'
+		);
+		const asked = reduce(s, { t: 'ask', playerId: 'a', text: 'q' }, 1).state;
+		expect(reduce(asked, { t: 'guess', playerId: 'a', footballerId: target }, 2).error).toBe(
+			'awaiting_answer'
+		);
+		const answered = reduce(asked, { t: 'answer', playerId: 'b', value: true }, 2).state;
+		expect(
+			reduce(answered, { t: 'guess', playerId: 'a', footballerId: target }, 3).state.phase
+		).toBe('finished');
 	});
 });
 
@@ -236,7 +264,10 @@ describe('full game script', () => {
 			{ t: 'endTurn', playerId: 'a' },
 			{ t: 'ask', playerId: 'b', text: 'midfielder?' },
 			{ t: 'answer', playerId: 'a', value: true },
-			{ t: 'endTurn', playerId: 'b' }
+			{ t: 'endTurn', playerId: 'b' },
+			// back to a: must ask-and-be-answered again before guessing (issue #2)
+			{ t: 'ask', playerId: 'a', text: 'striker?' },
+			{ t: 'answer', playerId: 'b', value: true }
 		]);
 		expect(s.turn).toBe('a');
 		expect(s.turns).toBe(2);

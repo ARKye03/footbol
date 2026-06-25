@@ -155,6 +155,7 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			if (state.turn === cmd.playerId) return fail(state, 'cannot_answer_own'); // the opponent answers
 			const next = clone(state);
 			next.awaitingAnswer = false;
+			next.answeredThisTurn = true;
 			next.version++;
 			const chat = mkChat(next, cmd.playerId, 'answer', cmd.value ? 'yes' : 'no', now);
 			next.chat.push(chat);
@@ -168,8 +169,10 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
 			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
+			if (!state.answeredThisTurn) return fail(state, 'must_ask_first');
 			const next = clone(state);
 			next.turn = opponentId(next, cmd.playerId);
+			next.answeredThisTurn = false;
 			next.turns++;
 			next.version++;
 			return { state: next, broadcast: [{ t: 'patch', version: next.version, turn: next.turn }] };
@@ -193,6 +196,8 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		case 'guess': {
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
+			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
+			if (!state.answeredThisTurn) return fail(state, 'must_ask_first');
 			const opp = opponentId(state, cmd.playerId);
 			if (!opp) return fail(state, 'no_opponent');
 			if (!state.board.some((c) => c.footballerId === cmd.footballerId))
