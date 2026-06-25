@@ -133,6 +133,8 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'ask': {
+			// No new questions in the equalizer — T is owed a bare guess (docs/11 § Constraint 2).
+			if (state.phase === 'equalizer') return fail(state, 'not_playing');
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
 			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
@@ -166,6 +168,18 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'endTurn': {
+			// Declining the equalizer guess lets S's correct guess stand → S wins (docs/11 § Constraint 2).
+			if (state.phase === 'equalizer') {
+				const second = state.order[1];
+				if (cmd.playerId !== second) return fail(state, 'not_your_turn');
+				const next = clone(state);
+				next.winnerId = next.starterId;
+				next.endReason = 'equalizer_held';
+				next.phase = 'finished';
+				next.turn = null;
+				next.version++;
+				return { state: next, broadcast: [gameOver(next)] };
+			}
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
 			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
@@ -194,6 +208,26 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'guess': {
+			// Equalizer: S already guessed right; T (order[1]) is owed exactly one bare guess
+			// (docs/11 § Constraint 2). Correct → draw; wrong → S's guess stands. No Penalty here.
+			if (state.phase === 'equalizer') {
+				const second = state.order[1];
+				if (cmd.playerId !== second) return fail(state, 'not_your_turn');
+				const opp = opponentId(state, cmd.playerId);
+				if (!opp) return fail(state, 'no_opponent');
+				if (!state.board.some((c) => c.footballerId === cmd.footballerId))
+					return fail(state, 'unknown_card');
+				const next = clone(state);
+				const correct = cmd.footballerId === next.players[opp].secretId;
+				next.winnerId = correct ? null : next.starterId;
+				next.endReason = correct ? 'equalizer_draw' : 'equalizer_held';
+				next.phase = 'finished';
+				next.turn = null;
+				next.awaitingAnswer = false;
+				next.answeredThisTurn = false;
+				next.version++;
+				return { state: next, broadcast: [gameOver(next)] };
+			}
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
 			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');

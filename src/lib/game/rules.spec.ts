@@ -269,6 +269,83 @@ describe('guess decision table', () => {
 	});
 });
 
+/**
+ * Equalizer phase (docs/11 § "Constraint 2 — Equalizer", issue #4). Reached when the
+ * Starter (a) guesses correctly: T (b) is owed exactly one bare guess. Correct → draw
+ * (`equalizer_draw`); wrong or decline → S keeps the win (`equalizer_held`). No Penalty.
+ */
+const equalizer = (): GameState => {
+	const s = askAnswered(playing(), 'a', 'b');
+	const target = s.players.b.secretId!;
+	const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1);
+	expect(r.state.phase).toBe('equalizer');
+	return r.state;
+};
+
+describe('equalizer', () => {
+	it('worked example 3 — T guesses correctly → equalizer_draw (winnerId null)', () => {
+		const s = equalizer();
+		const target = s.players.a.secretId!; // T hunts S's secret
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: target }, 2);
+		expect(r.state.phase).toBe('finished');
+		expect(r.state.winnerId).toBeNull();
+		expect(r.state.endReason).toBe('equalizer_draw');
+		expect(r.state.turn).toBeNull();
+		expect(r.broadcast).toEqual([
+			{
+				t: 'gameOver',
+				winnerId: null,
+				reason: 'equalizer_draw',
+				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+			}
+		]);
+	});
+
+	it('worked example 2 — T guesses wrong → equalizer_held (S wins, no Penalty)', () => {
+		const s = equalizer();
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: wrongCard(s, 'a') }, 2);
+		expect(r.state.phase).toBe('finished');
+		expect(r.state.winnerId).toBe('a'); // starterId
+		expect(r.state.endReason).toBe('equalizer_held');
+		expect(r.state.penalty).toBeNull(); // a wrong equalizer guess never opens Penalty
+		expect(r.state.turn).toBeNull();
+		expect(r.broadcast).toEqual([
+			{
+				t: 'gameOver',
+				winnerId: 'a',
+				reason: 'equalizer_held',
+				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+			}
+		]);
+	});
+
+	it('T declining via endTurn → equalizer_held (S wins)', () => {
+		const s = equalizer();
+		const r = reduce(s, { t: 'endTurn', playerId: 'b' }, 2);
+		expect(r.state.phase).toBe('finished');
+		expect(r.state.winnerId).toBe('a');
+		expect(r.state.endReason).toBe('equalizer_held');
+		expect(r.broadcast).toEqual([
+			{
+				t: 'gameOver',
+				winnerId: 'a',
+				reason: 'equalizer_held',
+				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+			}
+		]);
+	});
+
+	it('rejects ask during the equalizer and a guess/decline by anyone but T', () => {
+		const s = equalizer();
+		expect(reduce(s, { t: 'ask', playerId: 'b', text: 'q' }, 2).error).toBe('not_playing');
+		// Only order[1] (b) may act; S (a) cannot guess or decline in the equalizer.
+		expect(
+			reduce(s, { t: 'guess', playerId: 'a', footballerId: s.players.a.secretId! }, 2).error
+		).toBe('not_your_turn');
+		expect(reduce(s, { t: 'endTurn', playerId: 'a' }, 2).error).toBe('not_your_turn');
+	});
+});
+
 describe('forfeit', () => {
 	it('hands the win to the opponent and finishes', () => {
 		const r = reduce(playing(), { t: 'forfeit', playerId: 'a' }, 1);
