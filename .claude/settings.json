@@ -1,19 +1,41 @@
 {
-	"hooks": {
-		"PreToolUse": [
-			{
-				"matcher": "Edit|Write",
-				"hooks": [{ "type": "command", "command": "node .claude/hooks/guard-protected.mjs" }]
-			}
-		],
-		"PostToolUse": [
-			{
-				"matcher": "Edit|Write",
-				"hooks": [
-					{ "type": "command", "command": "node .claude/hooks/format-lint.mjs" },
-					{ "type": "command", "command": "node .claude/hooks/post-edit-advisor.mjs" }
-				]
-			}
-		]
-	}
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-protected.mjs"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/format-lint.mjs"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-edit-advisor.mjs"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__codegraph__codegraph_search",
+      "mcp__codegraph__codegraph_context",
+      "mcp__codegraph__codegraph_callers",
+      "mcp__codegraph__codegraph_callees",
+      "mcp__codegraph__codegraph_impact",
+      "mcp__codegraph__codegraph_node",
+      "mcp__codegraph__codegraph_status"
+    ]
+  }
 }
