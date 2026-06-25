@@ -10,7 +10,12 @@ const board = (n: number): BoardCard[] =>
 	}));
 
 const lobby = (): GameState =>
-	freshState('ABCD', { league: null, season: null, boardSize: 8 }, board(8), 42);
+	freshState(
+		'ABCD',
+		{ league: null, season: null, boardSize: 8, penaltyQuestions: 5 },
+		board(8),
+		42
+	);
 
 /** Drive a list of commands, asserting none errored unless told to; returns the final state. */
 function play(state: GameState, cmds: Command[]): GameState {
@@ -150,12 +155,12 @@ describe('guess', () => {
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1);
 		expect(r.state.phase).toBe('finished');
 		expect(r.state.winnerId).toBe('a');
-		expect(r.state.endReason).toBe('correct_guess');
+		expect(r.state.endReason).toBe('guess_win');
 		expect(r.broadcast).toEqual([
 			{
 				t: 'gameOver',
 				winnerId: 'a',
-				reason: 'correct_guess',
+				reason: 'guess_win',
 				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
 			}
 		]);
@@ -166,7 +171,7 @@ describe('guess', () => {
 		const wrong = s.board.map((c) => c.footballerId).find((id) => id !== s.players.b.secretId)!;
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrong }, 1);
 		expect(r.state.winnerId).toBe('b');
-		expect(r.state.endReason).toBe('wrong_guess');
+		expect(r.state.endReason).toBe('forfeit');
 	});
 
 	it('only the turn owner may guess', () => {

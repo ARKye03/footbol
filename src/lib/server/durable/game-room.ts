@@ -158,7 +158,12 @@ export class GameRoom extends DurableObject<Env> {
 
 		let state =
 			(await this.load()) ??
-			freshState(meta.code, { league: null, season: null, boardSize: 0 }, [], 0);
+			freshState(
+				meta.code,
+				{ league: null, season: null, boardSize: 0, penaltyQuestions: 5 },
+				[],
+				0
+			);
 		if (state.board.length === 0) state = await this.buildRoom(state, meta.pool);
 
 		const existing = !!state.players[pid];
@@ -201,7 +206,12 @@ export class GameRoom extends DurableObject<Env> {
 		return {
 			...state,
 			seed: randomSeed(), // secretSeed — independent of the board order
-			config: { league: pool.league, season: pool.season, boardSize: pool.boardSize },
+			config: {
+				league: pool.league,
+				season: pool.season,
+				boardSize: pool.boardSize,
+				penaltyQuestions: 5
+			},
 			board
 		};
 	}

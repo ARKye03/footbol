@@ -42,9 +42,12 @@ export function freshState(
 		board,
 		players: {},
 		order: [],
+		starterId: '',
 		turn: null,
 		turns: 0,
 		awaitingAnswer: false,
+		answeredThisTurn: false,
+		penalty: null,
 		chat: [],
 		winnerId: null,
 		endReason: null,
@@ -118,8 +121,10 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			for (const pid of next.order) next.players[pid].secretId = secrets[pid];
 			next.phase = 'playing';
 			next.turn = next.order[0];
+			next.starterId = next.order[0];
 			next.startedAt = now;
 			next.awaitingAnswer = false;
+			next.answeredThisTurn = false;
 			next.version++;
 			return {
 				state: next,
@@ -195,7 +200,8 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			const next = clone(state);
 			const correct = cmd.footballerId === next.players[opp].secretId;
 			next.winnerId = correct ? cmd.playerId : opp;
-			next.endReason = correct ? 'correct_guess' : 'wrong_guess';
+			// Placeholder mapping — the full equalizer/penalty decision table is issue #5.
+			next.endReason = correct ? 'guess_win' : 'forfeit';
 			next.phase = 'finished';
 			next.turn = null;
 			next.awaitingAnswer = false;
