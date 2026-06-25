@@ -346,6 +346,136 @@ describe('equalizer', () => {
 	});
 });
 
+/**
+ * Penalty phase (docs/11 § "Constraint 1 — Penalty phase", issue #5). Reached when a player
+ * guesses wrong: that player is out (answerer) and the survivor (asker) gets a question budget
+ * to hunt the out player's secret. Correct → survivor wins (`penalty_win`); first wrong guess or
+ * budget exhausted → draw (`penalty_draw`). Defaults per Open Q #1/#2: first wrong guess ends it,
+ * budget is counted as questions, a question is not required before guessing.
+ *
+ * S = order[0] = 'a' guesses wrong → survivor T = 'b' asks, out player 'a' answers.
+ */
+const penalty = (): GameState => {
+	const s = askAnswered(playing(), 'a', 'b');
+	const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrongCard(s, 'b') }, 1);
+	expect(r.state.phase).toBe('penalty');
+	expect(r.state.penalty).toEqual({ asker: 'b', answerer: 'a', questionsRemaining: 5 });
+	return r.state;
+};
+
+describe('penalty', () => {
+	it('worked example 4 — survivor asks then guesses correctly → penalty_win', () => {
+		let s = penalty();
+		// T (b) asks twice, S (a) answers each — budget burns from 5 to 3.
+		s = play(s, [
+			{ t: 'ask', playerId: 'b', text: 'q1' },
+			{ t: 'answer', playerId: 'a', value: true },
+			{ t: 'ask', playerId: 'b', text: 'q2' },
+			{ t: 'answer', playerId: 'a', value: false }
+		]);
+		expect(s.penalty!.questionsRemaining).toBe(3);
+		const target = s.players.a.secretId!; // survivor hunts the out player's secret
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: target }, 9);
+		expect(r.state.phase).toBe('finished');
+		expect(r.state.winnerId).toBe('b');
+		expect(r.state.endReason).toBe('penalty_win');
+		expect(r.state.turn).toBeNull();
+		expect(r.broadcast).toEqual([
+			{
+				t: 'gameOver',
+				winnerId: 'b',
+				reason: 'penalty_win',
+				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+			}
+		]);
+	});
+
+	it('survivor guesses wrong → penalty_draw (first wrong ends it, winnerId null)', () => {
+		const s = penalty();
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: wrongCard(s, 'a') }, 2);
+		expect(r.state.phase).toBe('finished');
+		expect(r.state.winnerId).toBeNull();
+		expect(r.state.endReason).toBe('penalty_draw');
+		expect(r.state.turn).toBeNull();
+		expect(r.broadcast).toEqual([
+			{
+				t: 'gameOver',
+				winnerId: null,
+				reason: 'penalty_draw',
+				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+			}
+		]);
+	});
+
+	it('worked example 5 — budget exhausted with no correct guess → penalty_draw', () => {
+		let s = penalty();
+		// Burn all 5 questions: ask → answer ×5.
+		for (let i = 0; i < 5; i++) {
+			s = play(s, [
+				{ t: 'ask', playerId: 'b', text: `q${i}` },
+				{ t: 'answer', playerId: 'a', value: true }
+			]);
+		}
+		expect(s.penalty!.questionsRemaining).toBe(0);
+		// A further ask with the budget spent (and no correct guess) resolves to a draw.
+		const r = reduce(s, { t: 'ask', playerId: 'b', text: 'one more?' }, 99);
+		expect(r.error).toBeUndefined();
+		expect(r.state.phase).toBe('finished');
+		expect(r.state.winnerId).toBeNull();
+		expect(r.state.endReason).toBe('penalty_draw');
+		expect(r.broadcast).toEqual([
+			{
+				t: 'gameOver',
+				winnerId: null,
+				reason: 'penalty_draw',
+				secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+			}
+		]);
+	});
+
+	it('an ask decrements the budget and broadcasts the updated penalty', () => {
+		const s = penalty();
+		const r = reduce(s, { t: 'ask', playerId: 'b', text: 'plays striker?' }, 2);
+		expect(r.state.penalty!.questionsRemaining).toBe(4);
+		expect(r.state.awaitingAnswer).toBe(true);
+		expect(r.broadcast).toEqual([
+			{
+				t: 'patch',
+				version: r.state.version,
+				chat: r.state.chat.at(-1),
+				awaitingAnswer: true,
+				penalty: r.state.penalty
+			}
+		]);
+	});
+
+	it('gates roles — out player cannot ask/guess/flip; survivor cannot answer', () => {
+		const s = penalty(); // asker = b (survivor), answerer = a (out)
+		// Out player may not ask, guess, flip, or pass.
+		expect(reduce(s, { t: 'ask', playerId: 'a', text: 'q' }, 2).error).toBe('not_your_turn');
+		expect(
+			reduce(s, { t: 'guess', playerId: 'a', footballerId: s.players.a.secretId! }, 2).error
+		).toBe('not_your_turn');
+		expect(reduce(s, { t: 'flip', playerId: 'a', footballerId: 'f0', down: true }, 2).error).toBe(
+			'not_playing'
+		);
+		expect(reduce(s, { t: 'endTurn', playerId: 'a' }, 2).error).toBe('not_playing');
+		expect(reduce(s, { t: 'endTurn', playerId: 'b' }, 2).error).toBe('not_playing');
+		// Survivor may not answer their own question; only the out player answers.
+		const asked = reduce(s, { t: 'ask', playerId: 'b', text: 'q' }, 2).state;
+		expect(reduce(asked, { t: 'answer', playerId: 'b', value: true }, 3).error).toBe(
+			'cannot_answer_own'
+		);
+		// The out player answers, clearing the flag.
+		const answered = reduce(asked, { t: 'answer', playerId: 'a', value: true }, 3).state;
+		expect(answered.awaitingAnswer).toBe(false);
+		// Survivor may flip privately to narrow candidates.
+		expect(
+			reduce(answered, { t: 'flip', playerId: 'b', footballerId: 'f0', down: true }, 4).error
+		).toBeUndefined();
+	});
+});
+
 describe('forfeit', () => {
 	it('hands the win to the opponent and finishes', () => {
 		const r = reduce(playing(), { t: 'forfeit', playerId: 'a' }, 1);

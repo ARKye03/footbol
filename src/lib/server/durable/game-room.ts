@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { assignSecrets, buildBoard } from '$lib/game/board';
 import { encode, parseClientMessage, toPublicState, type ServerMessage } from '$lib/game/protocol';
 import { freshState, GRACE_MS, reduce, toCommand, type Command } from '$lib/game/rules';
-import type { GameState, PlayerSlot } from '$lib/game/state';
+import { DEFAULT_PENALTY_QUESTIONS, type GameState, type PlayerSlot } from '$lib/game/state';
 import { getDb } from '$lib/server/db';
 import { listPool } from '$lib/server/db/catalog';
 import { gameRecord } from '$lib/server/db/schema';
@@ -160,7 +160,7 @@ export class GameRoom extends DurableObject<Env> {
 			(await this.load()) ??
 			freshState(
 				meta.code,
-				{ league: null, season: null, boardSize: 0, penaltyQuestions: 5 },
+				{ league: null, season: null, boardSize: 0, penaltyQuestions: DEFAULT_PENALTY_QUESTIONS },
 				[],
 				0
 			);
@@ -210,7 +210,7 @@ export class GameRoom extends DurableObject<Env> {
 				league: pool.league,
 				season: pool.season,
 				boardSize: pool.boardSize,
-				penaltyQuestions: 5
+				penaltyQuestions: DEFAULT_PENALTY_QUESTIONS
 			},
 			board
 		};

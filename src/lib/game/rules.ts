@@ -133,6 +133,43 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'ask': {
+			// Penalty: only the survivor (asker) may ask, against their question budget
+			// (docs/11 § Constraint 1). Budget exhausted with no correct guess → draw.
+			if (state.phase === 'penalty') {
+				const p = state.penalty!;
+				if (cmd.playerId !== p.asker) return fail(state, 'not_your_turn');
+				if (p.questionsRemaining <= 0) {
+					// Out of questions, never guessed correctly → penalty draw.
+					const next = clone(state);
+					next.winnerId = null;
+					next.endReason = 'penalty_draw';
+					next.phase = 'finished';
+					next.turn = null;
+					next.awaitingAnswer = false;
+					next.version++;
+					return { state: next, broadcast: [gameOver(next)] };
+				}
+				if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
+				if (!cmd.text.trim()) return fail(state, 'empty_question');
+				const next = clone(state);
+				next.penalty!.questionsRemaining--;
+				next.awaitingAnswer = true;
+				next.version++;
+				const chat = mkChat(next, cmd.playerId, 'question', cmd.text.trim(), now);
+				next.chat.push(chat);
+				return {
+					state: next,
+					broadcast: [
+						{
+							t: 'patch',
+							version: next.version,
+							chat,
+							awaitingAnswer: true,
+							penalty: next.penalty
+						}
+					]
+				};
+			}
 			// No new questions in the equalizer — T is owed a bare guess (docs/11 § Constraint 2).
 			if (state.phase === 'equalizer') return fail(state, 'not_playing');
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
@@ -151,6 +188,21 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'answer': {
+			// Penalty: only the out player (answerer) answers the survivor's questions.
+			if (state.phase === 'penalty') {
+				const p = state.penalty!;
+				if (cmd.playerId !== p.answerer) return fail(state, 'cannot_answer_own');
+				if (!state.awaitingAnswer) return fail(state, 'not_awaiting_answer');
+				const next = clone(state);
+				next.awaitingAnswer = false;
+				next.version++;
+				const chat = mkChat(next, cmd.playerId, 'answer', cmd.value ? 'yes' : 'no', now);
+				next.chat.push(chat);
+				return {
+					state: next,
+					broadcast: [{ t: 'patch', version: next.version, chat, awaitingAnswer: false }]
+				};
+			}
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (!state.awaitingAnswer) return fail(state, 'not_awaiting_answer');
 			if (!state.players[cmd.playerId]) return fail(state, 'unknown_player');
@@ -168,6 +220,8 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'endTurn': {
+			// No passing in the penalty — the survivor must ask or guess (docs/11 § Constraint 1).
+			if (state.phase === 'penalty') return fail(state, 'not_playing');
 			// Declining the equalizer guess lets S's correct guess stand → S wins (docs/11 § Constraint 2).
 			if (state.phase === 'equalizer') {
 				const second = state.order[1];
@@ -193,7 +247,10 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'flip': {
-			if (state.phase !== 'playing') return fail(state, 'not_playing');
+			// Penalty: the survivor still narrows candidates privately; the out player can't flip.
+			if (state.phase === 'penalty') {
+				if (cmd.playerId !== state.penalty!.asker) return fail(state, 'not_playing');
+			} else if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (!state.players[cmd.playerId]) return fail(state, 'unknown_player');
 			if (!state.board.some((c) => c.footballerId === cmd.footballerId))
 				return fail(state, 'unknown_card');
@@ -208,6 +265,25 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'guess': {
+			// Penalty: only the survivor (asker) may guess; the out player is done (docs/11 §
+			// Constraint 1). Correct → survivor wins (penalty_win); first wrong → draw
+			// (penalty_draw, default per Open Q #1). A question is not required before guessing.
+			if (state.phase === 'penalty') {
+				const p = state.penalty!;
+				if (cmd.playerId !== p.asker) return fail(state, 'not_your_turn');
+				if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
+				if (!state.board.some((c) => c.footballerId === cmd.footballerId))
+					return fail(state, 'unknown_card');
+				const next = clone(state);
+				const correct = cmd.footballerId === next.players[p.answerer].secretId;
+				next.winnerId = correct ? p.asker : null;
+				next.endReason = correct ? 'penalty_win' : 'penalty_draw';
+				next.phase = 'finished';
+				next.turn = null;
+				next.awaitingAnswer = false;
+				next.version++;
+				return { state: next, broadcast: [gameOver(next)] };
+			}
 			// Equalizer: S already guessed right; T (order[1]) is owed exactly one bare guess
 			// (docs/11 § Constraint 2). Correct → draw; wrong → S's guess stands. No Penalty here.
 			if (state.phase === 'equalizer') {

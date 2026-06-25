@@ -57,6 +57,9 @@ export interface GameConfig {
 	penaltyQuestions: number; // question budget the survivor gets after a wrong guess (docs/11)
 }
 
+/** Default survivor question budget in the penalty phase (docs/11 Configuration table). */
+export const DEFAULT_PENALTY_QUESTIONS = 5;
+
 /** Active penalty phase: the survivor (asker) hunts the out player's (answerer) secret. */
 export interface PenaltyState {
 	asker: string; // survivor — may ask/guess
