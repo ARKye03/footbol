@@ -239,8 +239,11 @@ export class GameRoom extends DurableObject<Env> {
 		// advantage alternates across games (docs/11 § Roles). New starterId = old order[1].
 		const order = state.order.length === 2 ? [state.order[1], state.order[0]] : [...state.order];
 		const players: Record<string, PlayerSlot> = {};
+		// A rematch starts a fresh game: clear secrets/eliminations and reset connected
+		// (a stale connected:false from a prior socket drop would leave a ghost-disconnected
+		// player with no pending grace alarm — anyone driving a rematch has a live socket).
 		for (const id of state.order)
-			players[id] = { ...state.players[id], secretId: null, eliminated: [] };
+			players[id] = { ...state.players[id], secretId: null, eliminated: [], connected: true };
 		const secrets = assignSecrets(rebuilt.board, order, rebuilt.seed);
 		for (const id of order) players[id].secretId = secrets[id];
 
