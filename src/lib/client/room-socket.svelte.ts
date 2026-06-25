@@ -6,7 +6,7 @@
  */
 import { SvelteSet } from 'svelte/reactivity';
 import type { ClientMessage, PublicGameState, ServerMessage } from '$lib/game/protocol';
-import type { BoardCard, ChatEntry, Phase, PlayerSlot } from '$lib/game/state';
+import type { BoardCard, ChatEntry, PenaltyState, Phase, PlayerSlot } from '$lib/game/state';
 
 export interface RoomSocketInit {
 	code: string;
@@ -25,6 +25,8 @@ export class RoomSocket {
 	chat = $state<ChatEntry[]>([]);
 	turn = $state<string | null>(null);
 	awaitingAnswer = $state(false);
+	answeredThisTurn = $state(false); // ask→answer done this turn; guess/pass legal only when true (docs/11)
+	penalty = $state<PenaltyState | null>(null); // present iff phase === 'penalty' (docs/11)
 	you = $state('');
 	readonly eliminated = new SvelteSet<string>(); // my private flips (optimistic; stable reactive instance)
 	connected = $state(false);
@@ -58,6 +60,19 @@ export class RoomSocket {
 
 	get me(): PlayerSlot | undefined {
 		return this.players[this.you];
+	}
+
+	/** Penalty role for the local player, or null when not in / not part of the penalty (docs/11). */
+	get penaltyRole(): 'asker' | 'answerer' | null {
+		if (this.phase !== 'penalty' || !this.penalty) return null;
+		if (this.penalty.asker === this.you) return 'asker';
+		if (this.penalty.answerer === this.you) return 'answerer';
+		return null;
+	}
+
+	/** Whether the local player is the Second (order[1]) — the one owed the equalizer guess (docs/11). */
+	get isSecond(): boolean {
+		return this.order[1] === this.you;
 	}
 
 	#connect(): void {
@@ -99,8 +114,17 @@ export class RoomSocket {
 				break;
 			case 'patch':
 				if (msg.phase) this.phase = msg.phase;
-				if (msg.turn !== undefined) this.turn = msg.turn;
-				if (msg.awaitingAnswer !== undefined) this.awaitingAnswer = msg.awaitingAnswer;
+				if (msg.turn !== undefined && msg.turn !== this.turn) {
+					this.turn = msg.turn;
+					this.answeredThisTurn = false; // turn rotated — back to the ask step (docs/11)
+				}
+				if (msg.awaitingAnswer !== undefined) {
+					// The act step opens once my outstanding ask has been answered (docs/11 turn gating).
+					if (this.awaitingAnswer && !msg.awaitingAnswer && this.turn === this.you)
+						this.answeredThisTurn = true;
+					this.awaitingAnswer = msg.awaitingAnswer;
+				}
+				if (msg.penalty !== undefined) this.penalty = msg.penalty;
 				if (msg.chat) this.chat = [...this.chat, msg.chat];
 				break;
 			case 'opponentLeft':
@@ -128,6 +152,8 @@ export class RoomSocket {
 		this.chat = s.chat;
 		this.turn = s.turn;
 		this.awaitingAnswer = s.awaitingAnswer;
+		this.answeredThisTurn = s.answeredThisTurn;
+		this.penalty = s.penalty;
 		this.eliminated.clear();
 		for (const id of s.players[you]?.eliminated ?? []) this.eliminated.add(id);
 		if (s.phase !== 'finished') this.result = null;

@@ -39,7 +39,7 @@ export const gameRecord = sqliteTable(
 		player1Id: text('player1_id').notNull(), // guest/user id
 		player2Id: text('player2_id').notNull(),
 		winnerId: text('winner_id'), // null = abandoned/draw
-		endReason: text('end_reason').notNull(), // correct_guess | wrong_guess | forfeit | abandoned
+		endReason: text('end_reason').notNull(), // guess_win | equalizer_held | equalizer_draw | penalty_win | penalty_draw | forfeit | abandoned (docs/11)
 		turns: integer('turns').notNull().default(0),
 		startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull(),
 		endedAt: integer('ended_at', { mode: 'timestamp_ms' }).notNull()

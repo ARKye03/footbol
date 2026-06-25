@@ -20,10 +20,17 @@ export interface BoardCard {
 	nationality?: string | null; // ISO country name — drives the card flag
 }
 
-export type Phase = 'lobby' | 'ready' | 'playing' | 'finished';
+export type Phase = 'lobby' | 'ready' | 'playing' | 'equalizer' | 'penalty' | 'finished';
 
-/** Why a game ended; persisted to `gameRecord.endReason` (docs/02). */
-export type EndReason = 'correct_guess' | 'wrong_guess' | 'forfeit' | 'abandoned';
+/** Why a game ended; persisted to `gameRecord.endReason` (docs/02, docs/11). */
+export type EndReason =
+	| 'guess_win'
+	| 'equalizer_held'
+	| 'equalizer_draw'
+	| 'penalty_win'
+	| 'penalty_draw'
+	| 'forfeit'
+	| 'abandoned';
 
 export type ChatKind = 'question' | 'answer' | 'system';
 
@@ -47,6 +54,17 @@ export interface GameConfig {
 	league: string | null;
 	season: number | null;
 	boardSize: number;
+	penaltyQuestions: number; // question budget the survivor gets after a wrong guess (docs/11)
+}
+
+/** Default survivor question budget in the penalty phase (docs/11 Configuration table). */
+export const DEFAULT_PENALTY_QUESTIONS = 5;
+
+/** Active penalty phase: the survivor (asker) hunts the out player's (answerer) secret. */
+export interface PenaltyState {
+	asker: string; // survivor — may ask/guess
+	answerer: string; // out player — only answers
+	questionsRemaining: number; // starts at config.penaltyQuestions, decrements per question
 }
 
 export interface GameState {
@@ -56,9 +74,12 @@ export interface GameState {
 	board: BoardCard[]; // shared, both players see this
 	players: Record<string, PlayerSlot>; // keyed by player id (max 2)
 	order: string[]; // [player1Id, player2Id] for turn rotation
+	starterId: string; // order[0] at start; branches the guess resolution table (docs/11)
 	turn: string | null; // whose turn (player id)
 	turns: number; // completed turns (rotations); persisted to gameRecord.turns
 	awaitingAnswer: boolean; // an ask is outstanding; the opponent must answer before endTurn
+	answeredThisTurn: boolean; // ask→answer done this turn; guess/pass legal only when true (docs/11)
+	penalty: PenaltyState | null; // present iff phase === 'penalty'
 	chat: ChatEntry[];
 	winnerId: string | null;
 	endReason: EndReason | null;

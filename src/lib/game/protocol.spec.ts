@@ -11,7 +11,12 @@ const board = (n: number): BoardCard[] =>
 	}));
 
 function playing(): GameState {
-	let s = freshState('ABCD', { league: null, season: null, boardSize: 8 }, board(8), 42);
+	let s = freshState(
+		'ABCD',
+		{ league: null, season: null, boardSize: 8, penaltyQuestions: 5 },
+		board(8),
+		42
+	);
 	s = reduce(s, { t: 'join', playerId: 'a', name: 'Alice' }, 1).state;
 	s = reduce(s, { t: 'join', playerId: 'b', name: 'Bob' }, 2).state;
 	s = reduce(s, { t: 'start' }, 3).state;

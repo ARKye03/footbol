@@ -9,6 +9,7 @@
 	import GameOver from '$lib/components/GameOver.svelte';
 	import GuessDialog from '$lib/components/GuessDialog.svelte';
 	import Lobby from '$lib/components/Lobby.svelte';
+	import PhaseBar from '$lib/components/PhaseBar.svelte';
 	import Reveal from '$lib/components/Reveal.svelte';
 	import TurnBar from '$lib/components/TurnBar.svelte';
 	import { RoomSocket } from '$lib/client/room-socket.svelte';
@@ -105,7 +106,7 @@
 			connected={s.connected}
 			boardSize={s.board.length}
 		/>
-	{:else if s.phase === 'playing'}
+	{:else if s.phase === 'playing' || s.phase === 'penalty' || s.phase === 'equalizer'}
 		{@const oppId = s.opponentId}
 		{@const oppName = oppId ? (s.players[oppId]?.name ?? '') : ''}
 		{@const pendingQuestion = s.chat.filter((c) => c.kind === 'question').at(-1)?.text ?? ''}
@@ -118,23 +119,35 @@
 						<ConnectionBadge connected={s.connected} opponentLeft={true} />
 					</div>
 				{/if}
-				<TurnBar
-					myTurn={s.myTurn}
-					awaitingAnswer={s.awaitingAnswer}
-					remaining={s.board.length - s.eliminated.size}
-					guessing={guessMode}
-					opponentName={oppName}
-					onMyPlayer={() => (reveal = mySecret(s) ?? null)}
-					onCancelGuess={() => (guessMode = false)}
-				/>
-				<div class="mt-3.5">
-					<Board
-						cards={s.board}
-						eliminated={s.eliminated}
+				{#if s.phase === 'playing'}
+					<TurnBar
+						myTurn={s.myTurn}
+						awaitingAnswer={s.awaitingAnswer}
+						remaining={s.board.length - s.eliminated.size}
 						guessing={guessMode}
-						onCard={(id) => onCard(s, id)}
+						opponentName={oppName}
+						onMyPlayer={() => (reveal = mySecret(s) ?? null)}
+						onCancelGuess={() => (guessMode = false)}
 					/>
-				</div>
+					<div class="mt-3.5">
+						<Board
+							cards={s.board}
+							eliminated={s.eliminated}
+							guessing={guessMode}
+							onCard={(id) => onCard(s, id)}
+						/>
+					</div>
+				{:else}
+					<PhaseBar kind={s.phase} guessing={guessMode} onCancelGuess={() => (guessMode = false)} />
+					<div class="mt-3.5">
+						<Board
+							cards={s.board}
+							eliminated={s.eliminated}
+							guessing={guessMode}
+							onCard={(id) => onCard(s, id)}
+						/>
+					</div>
+				{/if}
 			</section>
 
 			<aside class="panel flex flex-col overflow-hidden rounded-[18px] lg:h-[640px]">
@@ -144,8 +157,13 @@
 				</div>
 				<Chat entries={s.chat} players={s.players} you={s.you} />
 				<GameControls
+					phase={s.phase}
 					myTurn={s.myTurn}
 					awaitingAnswer={s.awaitingAnswer}
+					answeredThisTurn={s.answeredThisTurn}
+					penaltyRole={s.penaltyRole}
+					penaltyRemaining={s.penalty?.questionsRemaining ?? 0}
+					isSecond={s.isSecond}
 					{pendingQuestion}
 					opponentName={oppName}
 					onAsk={(t) => s.ask(t)}

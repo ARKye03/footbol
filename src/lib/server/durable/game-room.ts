@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { assignSecrets, buildBoard } from '$lib/game/board';
 import { encode, parseClientMessage, toPublicState, type ServerMessage } from '$lib/game/protocol';
 import { freshState, GRACE_MS, reduce, toCommand, type Command } from '$lib/game/rules';
-import type { GameState, PlayerSlot } from '$lib/game/state';
+import { DEFAULT_PENALTY_QUESTIONS, type GameState, type PlayerSlot } from '$lib/game/state';
 import { getDb } from '$lib/server/db';
 import { listPool } from '$lib/server/db/catalog';
 import { gameRecord } from '$lib/server/db/schema';
@@ -121,28 +121,24 @@ export class GameRoom extends DurableObject<Env> {
 		const r = reduce(state, { t: 'disconnect', playerId: pid }, Date.now());
 		await this.save(r.state);
 		for (const m of r.broadcast) this.broadcast(m, pid);
-		if (r.state.phase === 'playing' || r.state.phase === 'ready') {
+		if (isLive(r.state.phase)) {
 			await this.ctx.storage.setAlarm(Date.now() + GRACE_MS);
 		}
 	}
 
-	/** Grace period elapsed: if a player is still gone mid-game, the other wins by abandonment. */
+	/** Grace period elapsed: a player still gone mid-game abandons; resolve per phase (docs/11). */
 	async alarm(): Promise<void> {
 		const state = await this.load();
-		if (!state || (state.phase !== 'playing' && state.phase !== 'ready')) return;
+		if (!state || !isLive(state.phase)) return;
 		const gone = state.order.find((id) => state.players[id] && !state.players[id].connected);
 		if (!gone) return; // they came back
 
-		const r = reduce(state, { t: 'forfeit', playerId: gone }, Date.now());
+		// Phase-aware abandon: the forfeit handler routes winnerId per phase and stamps the
+		// generic ending as `abandoned` (named draw/held outcomes keep their semantic reason).
+		const r = reduce(state, { t: 'forfeit', playerId: gone, abandoned: true }, Date.now());
 		const next = r.state;
-		next.endReason = 'abandoned';
 		await this.save(next);
-		this.broadcast({
-			t: 'gameOver',
-			winnerId: next.winnerId,
-			reason: 'abandoned',
-			secretReveal: reveal(next)
-		});
+		for (const m of r.broadcast) this.broadcast(m);
 		this.ctx.waitUntil(this.writeHistory(next));
 	}
 
@@ -158,7 +154,12 @@ export class GameRoom extends DurableObject<Env> {
 
 		let state =
 			(await this.load()) ??
-			freshState(meta.code, { league: null, season: null, boardSize: 0 }, [], 0);
+			freshState(
+				meta.code,
+				{ league: null, season: null, boardSize: 0, penaltyQuestions: DEFAULT_PENALTY_QUESTIONS },
+				[],
+				0
+			);
 		if (state.board.length === 0) state = await this.buildRoom(state, meta.pool);
 
 		const existing = !!state.players[pid];
@@ -201,7 +202,12 @@ export class GameRoom extends DurableObject<Env> {
 		return {
 			...state,
 			seed: randomSeed(), // secretSeed — independent of the board order
-			config: { league: pool.league, season: pool.season, boardSize: pool.boardSize },
+			config: {
+				league: pool.league,
+				season: pool.season,
+				boardSize: pool.boardSize,
+				penaltyQuestions: DEFAULT_PENALTY_QUESTIONS
+			},
 			board
 		};
 	}
@@ -222,20 +228,22 @@ export class GameRoom extends DurableObject<Env> {
 			this.ctx.waitUntil(this.writeHistory(r.state));
 	}
 
-	/** Rematch: rebuild board + secrets with a fresh seed, loser leads, back to playing. */
+	/** Rematch: rebuild board + secrets with a fresh seed, swap roles, back to playing. */
 	private async onRematch(actor: string): Promise<void> {
 		const state = await this.load();
 		if (!state || state.phase !== 'finished')
 			return this.sendTo(actor, { t: 'error', message: 'not_finished' });
 
 		const rebuilt = await this.buildRoom({ ...state, board: [] }, poolIdOf(state));
-		// Loser leads the rematch: drop the winner, append at the end.
-		const order = state.winnerId
-			? [...state.order.filter((id) => id !== state.winnerId), state.winnerId]
-			: [...state.order];
+		// Swap roles: the previous Second (order[1]) leads the rematch, so the equalizer
+		// advantage alternates across games (docs/11 § Roles). New starterId = old order[1].
+		const order = state.order.length === 2 ? [state.order[1], state.order[0]] : [...state.order];
 		const players: Record<string, PlayerSlot> = {};
+		// A rematch starts a fresh game: clear secrets/eliminations and reset connected
+		// (a stale connected:false from a prior socket drop would leave a ghost-disconnected
+		// player with no pending grace alarm — anyone driving a rematch has a live socket).
 		for (const id of state.order)
-			players[id] = { ...state.players[id], secretId: null, eliminated: [] };
+			players[id] = { ...state.players[id], secretId: null, eliminated: [], connected: true };
 		const secrets = assignSecrets(rebuilt.board, order, rebuilt.seed);
 		for (const id of order) players[id].secretId = secrets[id];
 
@@ -243,10 +251,13 @@ export class GameRoom extends DurableObject<Env> {
 			...rebuilt,
 			players,
 			order,
+			starterId: order[0],
 			phase: 'playing',
 			turn: order[0],
 			turns: 0,
 			awaitingAnswer: false,
+			answeredThisTurn: false,
+			penalty: null,
 			chat: [],
 			winnerId: null,
 			endReason: null,
@@ -281,13 +292,9 @@ export class GameRoom extends DurableObject<Env> {
 	}
 }
 
-function reveal(state: GameState): Record<string, string> {
-	const out: Record<string, string> = {};
-	for (const id of state.order) {
-		const secret = state.players[id]?.secretId;
-		if (secret) out[id] = secret;
-	}
-	return out;
+/** A phase where a leaving player matters: grace alarm fires and abandon resolves per docs/11. */
+function isLive(phase: GameState['phase']): boolean {
+	return phase === 'ready' || phase === 'playing' || phase === 'penalty' || phase === 'equalizer';
 }
 
 function poolIdOf(state: GameState): string {
