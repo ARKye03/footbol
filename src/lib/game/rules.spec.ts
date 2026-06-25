@@ -83,6 +83,13 @@ describe('start', () => {
 		expect(s.players.a.secretId).not.toBe(s.players.b.secretId);
 	});
 
+	it('sets starterId to order[0] — the guess-table branch key (docs/11 § GameState additions)', () => {
+		const s = playing();
+		expect(s.starterId).toBe(s.order[0]);
+		expect(s.starterId).toBe('a'); // first to join leads the first game
+		expect(s.turn).toBe(s.starterId); // S always acts first
+	});
+
 	it('rejects a second start', () => {
 		expect(reduce(playing(), { t: 'start' }, 9).error).toBe('already_started');
 	});
@@ -629,5 +636,46 @@ describe('full game script', () => {
 		expect(final.state.phase).toBe('finished');
 		expect(final.state.winnerId).toBe('b');
 		expect(final.state.endReason).toBe('guess_win');
+	});
+});
+
+/**
+ * Rematch starter-swap (docs/11 § Roles, issue #6). The full rematch (rebuild board, fresh
+ * seed, reset secrets) lives in `game-room.ts` `onRematch`, an async Durable Object method with
+ * no pure harness — its end-to-end behaviour is covered by `pnpm check` + `pnpm e2e`. The one
+ * piece that IS pure logic is what the swap *means*: the previous Second leads the next game, so
+ * `starterId` alternates and the guess-resolution branch flips. `onRematch` expresses the swap as
+ * `order = [order[1], order[0]]` then `start`-equivalent (`starterId = order[0]`), so a fresh game
+ * with the players joined in the opposite order reproduces it exactly through `reduce`.
+ */
+describe('rematch starter-swap (pure-logic slice of DO onRematch)', () => {
+	/** Start a fresh game with the join order reversed — mirrors onRematch's `order` swap. */
+	const swappedStart = (): GameState =>
+		play(lobby(), [
+			{ t: 'join', playerId: 'b', name: 'Bob' }, // previous Second now joins first → starts
+			{ t: 'join', playerId: 'a', name: 'Alice' },
+			{ t: 'start' }
+		]);
+
+	it('the previous Second becomes the new starter (starterId = old order[1])', () => {
+		const first = playing();
+		expect(first.starterId).toBe('a'); // game 1: a started
+
+		const second = swappedStart();
+		expect(second.order).toEqual(['b', 'a']);
+		expect(second.starterId).toBe('b'); // game 2: the old Second leads
+		expect(second.starterId).not.toBe(first.starterId); // advantage alternated
+		expect(second.turn).toBe('b'); // new S acts first
+	});
+
+	it('the swap flips the equalizer branch — the new starter is now the one subject to it', () => {
+		// In game 1, a is S: a's correct guess opens the equalizer. After the swap, b is S, so
+		// it is now b's correct guess that opens the equalizer (and a — the new T — that wins
+		// outright on a correct guess). This is exactly the alternating advantage the swap buys.
+		const s = askAnswered(swappedStart(), 'b', 'a'); // S = b asks, T = a answers
+		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: s.players.a.secretId! }, 9);
+		expect(r.state.phase).toBe('equalizer'); // new S's correct guess → equalizer, not a win
+		expect(r.state.turn).toBe('a'); // new T (order[1]) is owed the equalizer guess
+		expect(r.state.winnerId).toBeNull();
 	});
 });
