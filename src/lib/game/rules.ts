@@ -144,6 +144,7 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 					next.winnerId = null;
 					next.endReason = 'penalty_draw';
 					next.phase = 'finished';
+					next.penalty = null;
 					next.turn = null;
 					next.awaitingAnswer = false;
 					next.version++;
@@ -279,6 +280,7 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 				next.winnerId = correct ? p.asker : null;
 				next.endReason = correct ? 'penalty_win' : 'penalty_draw';
 				next.phase = 'finished';
+				next.penalty = null;
 				next.turn = null;
 				next.awaitingAnswer = false;
 				next.version++;
@@ -398,6 +400,7 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			}
 
 			next.phase = 'finished';
+			next.penalty = null;
 			next.turn = null;
 			next.awaitingAnswer = false;
 			next.version++;
