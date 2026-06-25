@@ -483,6 +483,89 @@ describe('forfeit', () => {
 		expect(r.state.winnerId).toBe('b');
 		expect(r.state.endReason).toBe('forfeit');
 	});
+
+	it('rejects a forfeit once the game is finished', () => {
+		const done = reduce(playing(), { t: 'forfeit', playerId: 'a' }, 1).state;
+		expect(reduce(done, { t: 'forfeit', playerId: 'b' }, 2).error).toBe('already_finished');
+	});
+
+	// docs/11 § "Edge cases": leaving resolves per phase, not always opponent-wins (issue #6).
+	describe('phase-aware leave/abandon (docs/11 § Edge cases)', () => {
+		it('penalty + survivor leaves → penalty_draw, nobody wins', () => {
+			const s = penalty(); // asker = b (survivor), answerer = a (out)
+			const r = reduce(s, { t: 'forfeit', playerId: 'b' }, 9);
+			expect(r.state.phase).toBe('finished');
+			expect(r.state.winnerId).toBeNull();
+			expect(r.state.endReason).toBe('penalty_draw');
+			expect(r.broadcast).toEqual([
+				{
+					t: 'gameOver',
+					winnerId: null,
+					reason: 'penalty_draw',
+					secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+				}
+			]);
+		});
+
+		it('penalty + out player leaves → survivor wins (forfeit)', () => {
+			const s = penalty(); // asker = b (survivor), answerer = a (out)
+			const r = reduce(s, { t: 'forfeit', playerId: 'a' }, 9);
+			expect(r.state.phase).toBe('finished');
+			expect(r.state.winnerId).toBe('b'); // survivor / asker
+			expect(r.state.endReason).toBe('forfeit');
+		});
+
+		it('penalty + survivor abandons (grace) → penalty_draw, not relabelled abandoned', () => {
+			const s = penalty();
+			const r = reduce(s, { t: 'forfeit', playerId: 'b', abandoned: true }, 9);
+			expect(r.state.winnerId).toBeNull();
+			expect(r.state.endReason).toBe('penalty_draw'); // named draw outcome stands
+		});
+
+		it('penalty + out player abandons (grace) → survivor wins (abandoned)', () => {
+			const s = penalty();
+			const r = reduce(s, { t: 'forfeit', playerId: 'a', abandoned: true }, 9);
+			expect(r.state.winnerId).toBe('b');
+			expect(r.state.endReason).toBe('abandoned');
+		});
+
+		it('equalizer + T leaves → S keeps the win (equalizer_held)', () => {
+			const s = equalizer(); // S = a guessed right; T = b is owed one guess
+			const r = reduce(s, { t: 'forfeit', playerId: 'b' }, 9);
+			expect(r.state.phase).toBe('finished');
+			expect(r.state.winnerId).toBe('a'); // starterId
+			expect(r.state.endReason).toBe('equalizer_held');
+			expect(r.broadcast).toEqual([
+				{
+					t: 'gameOver',
+					winnerId: 'a',
+					reason: 'equalizer_held',
+					secretReveal: { a: s.players.a.secretId, b: s.players.b.secretId }
+				}
+			]);
+		});
+
+		it("equalizer + S leaves → S's correct guess stands, S wins (forfeit not applied)", () => {
+			const s = equalizer();
+			const r = reduce(s, { t: 'forfeit', playerId: 'a' }, 9);
+			expect(r.state.phase).toBe('finished');
+			expect(r.state.winnerId).toBe('a'); // starterId — guess stands
+			expect(r.state.endReason).toBe('equalizer_held'); // NOT 'forfeit' per spec line 186
+		});
+
+		it('equalizer abandon (grace) keeps equalizer_held, not abandoned', () => {
+			const s = equalizer();
+			const r = reduce(s, { t: 'forfeit', playerId: 'b', abandoned: true }, 9);
+			expect(r.state.winnerId).toBe('a');
+			expect(r.state.endReason).toBe('equalizer_held');
+		});
+
+		it('playing/ready abandon (grace) → opponent wins (abandoned)', () => {
+			const r = reduce(playing(), { t: 'forfeit', playerId: 'a', abandoned: true }, 9);
+			expect(r.state.winnerId).toBe('b');
+			expect(r.state.endReason).toBe('abandoned');
+		});
+	});
 });
 
 describe('disconnect / reconnect', () => {
@@ -499,6 +582,12 @@ describe('disconnect / reconnect', () => {
 		expect(back.state.players.b.connected).toBe(true);
 		expect(back.state.players.b.eliminated).toEqual(['f2']); // private state preserved
 		expect(back.broadcast).toEqual([{ t: 'opponentBack' }]);
+	});
+
+	it('broadcasts the grace notice when a player leaves mid-penalty (issue #6)', () => {
+		const gone = reduce(penalty(), { t: 'disconnect', playerId: 'a' }, 9);
+		expect(gone.state.players.a.connected).toBe(false);
+		expect(gone.broadcast).toEqual([{ t: 'opponentLeft', graceMs: 60_000 }]);
 	});
 
 	it('rejects unknown players and is idempotent on repeat disconnect', () => {

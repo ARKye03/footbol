@@ -7,7 +7,7 @@
  */
 import { assignSecrets } from './board';
 import type { ClientMessage, ServerMessage } from './protocol';
-import type { BoardCard, ChatEntry, ChatKind, GameConfig, GameState } from './state';
+import type { BoardCard, ChatEntry, ChatKind, EndReason, GameConfig, GameState } from './state';
 
 export type Command =
 	| { t: 'join'; playerId: string; name: string }
@@ -17,7 +17,7 @@ export type Command =
 	| { t: 'endTurn'; playerId: string }
 	| { t: 'flip'; playerId: string; footballerId: string; down: boolean }
 	| { t: 'guess'; playerId: string; footballerId: string }
-	| { t: 'forfeit'; playerId: string }
+	| { t: 'forfeit'; playerId: string; abandoned?: boolean }
 	| { t: 'disconnect'; playerId: string }
 	| { t: 'reconnect'; playerId: string };
 
@@ -365,11 +365,38 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 		}
 
 		case 'forfeit': {
+			// Phase-aware leave/abandon resolution (docs/11 § "Edge cases"). The leaver's
+			// winnerId/endReason depend on which phase they bailed in. `abandoned` (grace
+			// exceeded) only swaps the *generic* `forfeit` ending to `abandoned`; the
+			// spec's named phase outcomes (penalty_draw, equalizer_held) carry the winnerId
+			// meaning and stand regardless of how the player left.
 			if (state.phase === 'finished') return fail(state, 'already_finished');
 			if (!state.players[cmd.playerId]) return fail(state, 'unknown_player');
 			const next = clone(state);
-			next.winnerId = opponentId(next, cmd.playerId); // null if the player is alone
-			next.endReason = 'forfeit';
+			const generic: EndReason = cmd.abandoned ? 'abandoned' : 'forfeit';
+
+			if (state.phase === 'penalty') {
+				const p = state.penalty!;
+				if (cmd.playerId === p.asker) {
+					// Survivor bails on their last chance → draw, nobody wins.
+					next.winnerId = null;
+					next.endReason = 'penalty_draw';
+				} else {
+					// Out player leaves; the survivor was going to answer anyway → survivor wins.
+					next.winnerId = p.asker;
+					next.endReason = generic;
+				}
+			} else if (state.phase === 'equalizer') {
+				// S already guessed correctly. If Second (order[1]) leaves, the equalizer
+				// is unanswered → S keeps the win (equalizer_held). If the Starter leaves,
+				// S's correct guess still stands → S wins; `forfeit` is NOT applied (spec).
+				next.winnerId = next.starterId;
+				next.endReason = 'equalizer_held';
+			} else {
+				next.winnerId = opponentId(next, cmd.playerId); // null if the player is alone
+				next.endReason = generic;
+			}
+
 			next.phase = 'finished';
 			next.turn = null;
 			next.awaitingAnswer = false;
@@ -384,7 +411,8 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			const next = clone(state);
 			next.players[cmd.playerId].connected = false;
 			next.version++;
-			const live = next.phase === 'playing' || next.phase === 'ready';
+			// Grace applies across every live phase (playing/ready and the new penalty/equalizer).
+			const live = next.phase !== 'lobby' && next.phase !== 'finished';
 			return { state: next, broadcast: live ? [{ t: 'opponentLeft', graceMs: GRACE_MS }] : [] };
 		}
 
