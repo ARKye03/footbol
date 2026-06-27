@@ -6,7 +6,7 @@ Guide Claude Code (claude.ai/code) for code this repo.
 
 **footbol** — web, real-time multiplayer "Quién es quién" (Guess Who?) for football/soccer players. Two players join private room, each get secret player, take turns asking Yes/No questions to eliminate candidates till guess opponent.
 
-Target runtime: Cloudflare edge — WebSockets + Durable Objects for live room sync, D1 persistence, R2 headshots, API-Football for player data. **MVP shipped locally (Phases 0–4, docs/10):** real `GameRoom` DO (WS hibernation), pure `rules.ts` state machine, board + private flips + chat Q&A + guess/reveal/rematch UI, guest auth + `/login`, dark FUT redesign, EN/ES, catalog ingestion. Verified locally via `dev:full` + `smoke:ws` + `e2e`. **Deferred:** Cloudflare deploy + prod seed (needs CF creds). **Next gameplay change:** advanced match rules in `docs/11-game-rules.md` — current `rules.ts` still simpler win/lose model. `demo/` routes removed.
+Target runtime: Cloudflare edge — WebSockets + Durable Objects for live room sync, D1 persistence, R2 headshots, API-Football for player data. **MVP shipped locally (Phases 0–4, docs/10):** real `GameRoom` DO (WS hibernation), pure `rules.ts` state machine, board + private flips + chat Q&A + guess/reveal/rematch UI, guest auth + `/login`, dark FUT redesign, EN/ES, catalog ingestion. Verified locally via `dev:full` + `smoke:ws` + `e2e`. **Advanced match rules shipped (ms-1):** `rules.ts` implements the `docs/11` spec — `starterId`, `penalty` + `equalizer` phases, draw outcomes (`penalty_draw`/`equalizer_held`/etc.); no longer the simple win/lose model. **Deferred:** Cloudflare deploy + prod seed (needs CF creds). `demo/` routes removed.
 
 ## Implementation plan
 
@@ -15,7 +15,7 @@ Full build plan in **`docs/`** — read before building game features so build _
 - [`docs/README.md`](docs/README.md) — index + locked decisions (one Worker, Durable Object re-exported from `src/worker.ts`; guests via Better Auth `anonymous` plugin; free-chat MVP questions; pure testable rules module).
 - [`docs/10-roadmap.md`](docs/10-roadmap.md) — phased tasks; **MVP = end of Phase 4**. Phase 0 wires missing bindings + dual local-dev modes.
 - [`docs/07-local-development.md`](docs/07-local-development.md) — `vite dev` (platformProxy, no live WS) vs `pnpm dev:full` (`wrangler dev`, real Durable Object multiplayer).
-- [`docs/11-game-rules.md`](docs/11-game-rules.md) — **target** match rules (penalty phase, first-mover equalizer, draws). Shipped game simpler model; this spec to migrate `rules.ts` to.
+- [`docs/11-game-rules.md`](docs/11-game-rules.md) — match rules (penalty phase, first-mover equalizer, draws). **Now implemented** in `rules.ts` (ms-1); doc still labels itself "target spec" but the code matches it.
 
 ## Commands
 
