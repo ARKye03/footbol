@@ -6,7 +6,6 @@
 
 **Guess Who — football edition.** Real-time, two-player "¿Quién es quién?" for footballers, on the Cloudflare edge.
 
-[![CI](https://github.com/ARKye03/footbol/actions/workflows/ci.yml/badge.svg)](https://github.com/ARKye03/footbol/actions/workflows/ci.yml)
 ![SvelteKit](https://img.shields.io/badge/SvelteKit-Svelte_5_runes-ff3e00?logo=svelte&logoColor=white)
 ![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers_·_Durable_Objects_·_D1_·_R2-f38020?logo=cloudflare&logoColor=white)
 ![i18n](https://img.shields.io/badge/i18n-EN_·_ES-2563eb)
