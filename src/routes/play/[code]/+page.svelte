@@ -160,7 +160,6 @@
 					phase={s.phase}
 					myTurn={s.myTurn}
 					awaitingAnswer={s.awaitingAnswer}
-					answeredThisTurn={s.answeredThisTurn}
 					penaltyRole={s.penaltyRole}
 					penaltyRemaining={s.penalty?.questionsRemaining ?? 0}
 					isSecond={s.isSecond}

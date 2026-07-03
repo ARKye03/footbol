@@ -6,7 +6,6 @@ import GameControls from './GameControls.svelte';
 const noop = () => {};
 const base = {
 	phase: 'playing' as const,
-	answeredThisTurn: false,
 	pendingQuestion: '',
 	opponentName: 'Marco',
 	onAsk: noop,
@@ -24,27 +23,16 @@ describe('GameControls.svelte', () => {
 		expect(onAsk).toHaveBeenCalledWith('is a defender?');
 	});
 
-	it('hides the guess button before the act step', async () => {
-		render(GameControls, {
-			...base,
-			myTurn: true,
-			awaitingAnswer: false,
-			answeredThisTurn: false
-		});
+	it('hides the guess button while an ask is outstanding', async () => {
+		render(GameControls, { ...base, myTurn: true, awaitingAnswer: true });
 		await expect
 			.element(page.getByRole('button', { name: /Make my guess/ }))
 			.not.toBeInTheDocument();
 	});
 
-	it('arms guess mode once answered (act step)', async () => {
+	it('arms guess mode on your turn (before asking)', async () => {
 		const onStartGuess = vi.fn();
-		render(GameControls, {
-			...base,
-			myTurn: true,
-			awaitingAnswer: false,
-			answeredThisTurn: true,
-			onStartGuess
-		});
+		render(GameControls, { ...base, myTurn: true, awaitingAnswer: false, onStartGuess });
 		await page.getByRole('button', { name: /Make my guess/ }).click();
 		expect(onStartGuess).toHaveBeenCalledOnce();
 	});

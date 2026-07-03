@@ -46,7 +46,6 @@ export function freshState(
 		turn: null,
 		turns: 0,
 		awaitingAnswer: false,
-		answeredThisTurn: false,
 		penalty: null,
 		chat: [],
 		winnerId: null,
@@ -124,7 +123,6 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			next.starterId = next.order[0];
 			next.startedAt = now;
 			next.awaitingAnswer = false;
-			next.answeredThisTurn = false;
 			next.version++;
 			return {
 				state: next,
@@ -208,15 +206,20 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			if (!state.awaitingAnswer) return fail(state, 'not_awaiting_answer');
 			if (!state.players[cmd.playerId]) return fail(state, 'unknown_player');
 			if (state.turn === cmd.playerId) return fail(state, 'cannot_answer_own'); // the opponent answers
+			// Answering the outstanding ask auto-ends the asker's turn — the answerer
+			// becomes the new asker (docs/11). To act on info, guess/pass BEFORE asking.
 			const next = clone(state);
 			next.awaitingAnswer = false;
-			next.answeredThisTurn = true;
+			next.turn = cmd.playerId;
+			next.turns++;
 			next.version++;
 			const chat = mkChat(next, cmd.playerId, 'answer', cmd.value ? 'yes' : 'no', now);
 			next.chat.push(chat);
 			return {
 				state: next,
-				broadcast: [{ t: 'patch', version: next.version, chat, awaitingAnswer: false }]
+				broadcast: [
+					{ t: 'patch', version: next.version, chat, awaitingAnswer: false, turn: next.turn }
+				]
 			};
 		}
 
@@ -235,13 +238,13 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 				next.version++;
 				return { state: next, broadcast: [gameOver(next)] };
 			}
+			// Pass without asking (docs/11): skip your turn. Asking already auto-ends the
+			// turn on answer, so endTurn is only for the "don't ask, don't guess" case.
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
 			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
-			if (!state.answeredThisTurn) return fail(state, 'must_ask_first');
 			const next = clone(state);
 			next.turn = opponentId(next, cmd.playerId);
-			next.answeredThisTurn = false;
 			next.turns++;
 			next.version++;
 			return { state: next, broadcast: [{ t: 'patch', version: next.version, turn: next.turn }] };
@@ -302,14 +305,14 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 				next.phase = 'finished';
 				next.turn = null;
 				next.awaitingAnswer = false;
-				next.answeredThisTurn = false;
 				next.version++;
 				return { state: next, broadcast: [gameOver(next)] };
 			}
+			// Guess is an opt-in turn action taken BEFORE asking (docs/11): it's your turn
+			// and you have no ask outstanding. Asking instead auto-ends the turn on answer.
 			if (state.phase !== 'playing') return fail(state, 'not_playing');
 			if (state.turn !== cmd.playerId) return fail(state, 'not_your_turn');
 			if (state.awaitingAnswer) return fail(state, 'awaiting_answer');
-			if (!state.answeredThisTurn) return fail(state, 'must_ask_first');
 			const opp = opponentId(state, cmd.playerId);
 			if (!opp) return fail(state, 'no_opponent');
 			if (!state.board.some((c) => c.footballerId === cmd.footballerId))
@@ -319,7 +322,6 @@ export function reduce(state: GameState, cmd: Command, now: number): Reduction {
 			const isStarter = cmd.playerId === next.starterId;
 			const [first, second] = next.order;
 			next.awaitingAnswer = false;
-			next.answeredThisTurn = false;
 			next.version++;
 
 			// docs/11 § "Guess resolution — the two constraints". A wrong guess never

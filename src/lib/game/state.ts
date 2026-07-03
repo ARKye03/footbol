@@ -77,8 +77,7 @@ export interface GameState {
 	starterId: string; // order[0] at start; branches the guess resolution table (docs/11)
 	turn: string | null; // whose turn (player id)
 	turns: number; // completed turns (rotations); persisted to gameRecord.turns
-	awaitingAnswer: boolean; // an ask is outstanding; the opponent must answer before endTurn
-	answeredThisTurn: boolean; // ask→answer done this turn; guess/pass legal only when true (docs/11)
+	awaitingAnswer: boolean; // an ask is outstanding; answering it auto-ends the asker's turn (docs/11)
 	penalty: PenaltyState | null; // present iff phase === 'penalty'
 	chat: ChatEntry[];
 	winnerId: string | null;

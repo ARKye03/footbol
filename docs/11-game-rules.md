@@ -23,16 +23,21 @@ guesses.
 
 ## Turn anatomy
 
-A turn belongs to one player P (opponent = O). It has three steps, in order:
+A turn belongs to one player P (opponent = O). On P's turn, P takes **exactly one** of:
 
-1. **Ask** — P asks exactly **one** yes/no question (free chat; MVP isn't auto-evaluated).
-2. **Answer** — O answers **Yes** or **No**.
-3. **Act** — P then either **guesses** O's secret, or **passes** (ends the turn).
+1. **Ask** — P asks one yes/no question (free chat; MVP isn't auto-evaluated). O answers **Yes**
+   or **No**, and **that answer ends P's turn** — O becomes the new turn owner. (P cannot also
+   guess this turn; to act on the answer, P guesses at the start of a later turn.)
+2. **Guess** — P guesses O's secret directly (no question first). Resolves per the table below.
+3. **Pass** — P ends the turn without asking or guessing.
 
-P must ask-and-be-answered before P may guess or pass. Card flipping (private elimination) is
-allowed any time and never ends a turn.
+Card flipping (private elimination) is allowed any time and never ends a turn.
 
 > A round = S's full turn, then T's full turn. S always acts first within a round.
+
+> **Note (impl):** Earlier drafts required ask→answer→act _within one turn_ (guess only after
+> being answered). The shipped code instead auto-ends the turn on the answer and makes guessing a
+> standalone turn action taken before asking — see [Open Q #4](#open-questions-confirm-before-implementing).
 
 ## Guess resolution — the two constraints
 
@@ -139,9 +144,9 @@ Augment the existing `GameState` ([02](./02-data-model.md)); these don't yet exi
 
 - `starterId: string` — set to `order[0]` at start; used to branch the guess table. Survives
   rematch as the **new** `order[0]`.
-- Turn gating so guess is only legal in the **act** step. Either a `turnStep: 'ask' | 'answer'
-| 'act'`, or reuse `awaitingAnswer` plus an `answeredThisTurn: boolean` (guess legal when
-  `answeredThisTurn && !awaitingAnswer`). Reset on turn rotation.
+- Turn gating (as shipped): a guess/pass is legal when it's your turn and no ask is outstanding
+  (`turn === playerId && !awaitingAnswer`). Answering the outstanding ask rotates `turn` to the
+  answerer and increments `turns`. No `answeredThisTurn`/`turnStep` flag is needed.
 - `penalty: { asker: string; answerer: string; questionsRemaining: number } | null` — present
   iff `phase === 'penalty'`. `questionsRemaining` starts at `config.penaltyQuestions`,
   decrements per question asked.
@@ -159,10 +164,10 @@ Augment the existing `GameState` ([02](./02-data-model.md)); these don't yet exi
 
 ## Worked examples
 
-1. **Outright second-mover win.** S asks, T answers; S passes. T asks, S answers; T guesses
-   correctly → **T wins** (`guess_win`). No equalizer.
+1. **Outright second-mover win.** S asks; T answers (S's turn ends → T's turn). On T's turn T
+   guesses correctly → **T wins** (`guess_win`). No equalizer.
 
-2. **Starter wins, equalizer held.** S asks, T answers; S guesses correctly → `equalizer`. T
+2. **Starter wins, equalizer held.** S guesses correctly on its turn → `equalizer`. T
    guesses, wrong → **S wins** (`equalizer_held`).
 
 3. **Draw by equalizer.** As above but T's equalizer guess is correct → **draw**
@@ -199,9 +204,10 @@ Augment the existing `GameState` ([02](./02-data-model.md)); these don't yet exi
    spend a question before each guess."
 3. **Equalizer: guess-only?** Spec gives T a single guess with **no** question. Alternative:
    let T ask one final question first. _Chosen default: guess-only._
-4. **Ask mandatory each turn?** Spec requires ask→answer before guess/pass every turn (keeps
-   the question economy symmetric, which the equalizer math assumes). Alternative: allow a
-   guess without asking. _Chosen default: ask is mandatory._
+4. **Ask mandatory each turn?** Original spec required ask→answer before guess/pass every turn.
+   **Superseded in code:** asking auto-ends the turn on the answer, and a guess is a standalone
+   turn action (no prior ask). A player thus asks _or_ guesses _or_ passes per turn — the
+   question economy stays symmetric because each turn still yields exactly one action.
 5. **Penalty draw vs. survivor-win-by-default.** Spec makes a failed penalty a **draw**.
    Alternative: the wrong-guesser's loss means the opponent wins regardless. _Chosen default:
    draw_ (the nuance the constraint exists to add).

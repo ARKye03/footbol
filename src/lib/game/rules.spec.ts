@@ -112,14 +112,17 @@ describe('ask / answer', () => {
 		);
 	});
 
-	it('only the opponent may answer, clearing the flag', () => {
+	it('only the opponent may answer; answering auto-ends the asker turn', () => {
 		const asked = reduce(playing(), { t: 'ask', playerId: 'a', text: 'q' }, 1).state;
 		expect(reduce(asked, { t: 'answer', playerId: 'a', value: true }, 2).error).toBe(
 			'cannot_answer_own'
 		);
 		const answered = reduce(asked, { t: 'answer', playerId: 'b', value: false }, 2).state;
 		expect(answered.awaitingAnswer).toBe(false);
+		expect(answered.turn).toBe('b'); // answering the ask ends a's turn → b's turn (docs/11)
+		expect(answered.turns).toBe(1);
 		expect(answered.chat.at(-1)).toMatchObject({ from: 'b', kind: 'answer', text: 'no' });
+		// b now owns the turn with no ask outstanding — a stray re-answer is rejected.
 		expect(reduce(answered, { t: 'answer', playerId: 'b', value: true }, 3).error).toBe(
 			'not_awaiting_answer'
 		);
@@ -127,19 +130,17 @@ describe('ask / answer', () => {
 });
 
 describe('endTurn', () => {
-	it('rotates the turn and counts it; blocked while awaiting an answer', () => {
-		const asked = reduce(playing(), { t: 'ask', playerId: 'a', text: 'q' }, 1).state;
-		expect(reduce(asked, { t: 'endTurn', playerId: 'a' }, 2).error).toBe('awaiting_answer');
-		const answered = reduce(asked, { t: 'answer', playerId: 'b', value: true }, 2).state;
-		expect(reduce(answered, { t: 'endTurn', playerId: 'b' }, 3).error).toBe('not_your_turn');
-		const ended = reduce(answered, { t: 'endTurn', playerId: 'a' }, 3).state;
-		expect(ended.turn).toBe('b');
-		expect(ended.turns).toBe(1);
-		expect(ended.answeredThisTurn).toBe(false); // reset on rotation (issue #2)
+	it('passes without asking, rotating the turn and counting it', () => {
+		// Asking auto-ends the turn on answer, so endTurn is the "don't ask, don't guess" pass.
+		expect(reduce(playing(), { t: 'endTurn', playerId: 'b' }, 1).error).toBe('not_your_turn');
+		const passed = reduce(playing(), { t: 'endTurn', playerId: 'a' }, 1).state;
+		expect(passed.turn).toBe('b');
+		expect(passed.turns).toBe(1);
 	});
 
-	it('rejects a pass before an ask-answer cycle (issue #2)', () => {
-		expect(reduce(playing(), { t: 'endTurn', playerId: 'a' }, 1).error).toBe('must_ask_first');
+	it('is blocked while an ask is outstanding', () => {
+		const asked = reduce(playing(), { t: 'ask', playerId: 'a', text: 'q' }, 1).state;
+		expect(reduce(asked, { t: 'endTurn', playerId: 'a' }, 2).error).toBe('awaiting_answer');
 	});
 });
 
@@ -160,12 +161,8 @@ describe('flip', () => {
 	});
 });
 
-/** A turn owner must ask-and-be-answered before acting (issue #2). */
-const askAnswered = (state: GameState, asker: string, answerer: string): GameState =>
-	play(state, [
-		{ t: 'ask', playerId: asker, text: 'q' },
-		{ t: 'answer', playerId: answerer, value: true }
-	]);
+/** Rotate the turn to the Second (b) by passing — b then acts on its own turn (docs/11). */
+const secondsTurn = (state: GameState): GameState => play(state, [{ t: 'endTurn', playerId: 'a' }]);
 
 /** A board id that is NOT the given player's secret (a guaranteed-wrong guess target). */
 const wrongCard = (s: GameState, holder: string): string =>
@@ -179,7 +176,7 @@ const wrongCard = (s: GameState, holder: string): string =>
  */
 describe('guess decision table', () => {
 	it('starter + correct → equalizer for T, no winner yet (does not finish)', () => {
-		const s = askAnswered(playing(), 'a', 'b');
+		const s = playing();
 		const target = s.players.b.secretId!;
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1);
 		expect(r.state.phase).toBe('equalizer');
@@ -193,7 +190,7 @@ describe('guess decision table', () => {
 	});
 
 	it('starter + wrong → penalty opens for T, no instant opponent win', () => {
-		const s = askAnswered(playing(), 'a', 'b');
+		const s = playing();
 		const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrongCard(s, 'b') }, 1);
 		expect(r.state.phase).toBe('penalty');
 		expect(r.state.turn).toBe('b'); // survivor = order[1] asks
@@ -212,10 +209,8 @@ describe('guess decision table', () => {
 	});
 
 	it('second + correct → T wins immediately with a full secret reveal', () => {
-		// Rotate the turn to T (b) and ask-answer so b may act.
-		let s = askAnswered(playing(), 'a', 'b');
-		s = play(s, [{ t: 'endTurn', playerId: 'a' }]);
-		s = askAnswered(s, 'b', 'a');
+		// Rotate the turn to T (b), who then guesses on its own turn.
+		const s = secondsTurn(playing());
 		const target = s.players.a.secretId!;
 		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: target }, 1);
 		expect(r.state.phase).toBe('finished');
@@ -232,9 +227,7 @@ describe('guess decision table', () => {
 	});
 
 	it('second + wrong → penalty opens for S, no instant opponent win', () => {
-		let s = askAnswered(playing(), 'a', 'b');
-		s = play(s, [{ t: 'endTurn', playerId: 'a' }]);
-		s = askAnswered(s, 'b', 'a');
+		const s = secondsTurn(playing());
 		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: wrongCard(s, 'a') }, 1);
 		expect(r.state.phase).toBe('penalty');
 		expect(r.state.turn).toBe('a'); // survivor = order[0] asks
@@ -258,21 +251,18 @@ describe('guess decision table', () => {
 		);
 	});
 
-	it('rejects a guess before an ask-answer cycle, allows it after (issue #2)', () => {
+	it('a guess is an opt-in turn action taken before asking', () => {
 		const s = playing();
 		const target = s.players.b.secretId!;
-		expect(reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1).error).toBe(
-			'must_ask_first'
+		// S may guess straight away on its turn — a correct guess opens the equalizer.
+		expect(reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1).state.phase).toBe(
+			'equalizer'
 		);
+		// But not while an ask is outstanding — that ask must be answered first (ending the turn).
 		const asked = reduce(s, { t: 'ask', playerId: 'a', text: 'q' }, 1).state;
 		expect(reduce(asked, { t: 'guess', playerId: 'a', footballerId: target }, 2).error).toBe(
 			'awaiting_answer'
 		);
-		const answered = reduce(asked, { t: 'answer', playerId: 'b', value: true }, 2).state;
-		// S + correct now opens the equalizer rather than finishing outright.
-		expect(
-			reduce(answered, { t: 'guess', playerId: 'a', footballerId: target }, 3).state.phase
-		).toBe('equalizer');
 	});
 });
 
@@ -282,7 +272,7 @@ describe('guess decision table', () => {
  * (`equalizer_draw`); wrong or decline → S keeps the win (`equalizer_held`). No Penalty.
  */
 const equalizer = (): GameState => {
-	const s = askAnswered(playing(), 'a', 'b');
+	const s = playing();
 	const target = s.players.b.secretId!;
 	const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: target }, 1);
 	expect(r.state.phase).toBe('equalizer');
@@ -363,7 +353,7 @@ describe('equalizer', () => {
  * S = order[0] = 'a' guesses wrong → survivor T = 'b' asks, out player 'a' answers.
  */
 const penalty = (): GameState => {
-	const s = askAnswered(playing(), 'a', 'b');
+	const s = playing();
 	const r = reduce(s, { t: 'guess', playerId: 'a', footballerId: wrongCard(s, 'b') }, 1);
 	expect(r.state.phase).toBe('penalty');
 	expect(r.state.penalty).toEqual({ asker: 'b', answerer: 'a', questionsRemaining: 5 });
@@ -623,15 +613,11 @@ describe('full game script', () => {
 		let s = playing();
 		s = play(s, [
 			{ t: 'ask', playerId: 'a', text: 'goalkeeper?' },
-			{ t: 'answer', playerId: 'b', value: false },
-			{ t: 'endTurn', playerId: 'a' },
-			// b's turn: must ask-and-be-answered before guessing (issue #2)
-			{ t: 'ask', playerId: 'b', text: 'midfielder?' },
-			{ t: 'answer', playerId: 'a', value: true }
+			{ t: 'answer', playerId: 'b', value: false } // answering ends a's turn → b's turn
 		]);
 		expect(s.turn).toBe('b');
 		expect(s.turns).toBe(1);
-		// Second player (T) guessing correctly wins outright (docs/11, issue #3).
+		// Second player (T) guessing correctly on its own turn wins outright (docs/11, issue #3).
 		const final = reduce(s, { t: 'guess', playerId: 'b', footballerId: s.players.a.secretId! }, 99);
 		expect(final.state.phase).toBe('finished');
 		expect(final.state.winnerId).toBe('b');
@@ -672,7 +658,7 @@ describe('rematch starter-swap (pure-logic slice of DO onRematch)', () => {
 		// In game 1, a is S: a's correct guess opens the equalizer. After the swap, b is S, so
 		// it is now b's correct guess that opens the equalizer (and a — the new T — that wins
 		// outright on a correct guess). This is exactly the alternating advantage the swap buys.
-		const s = askAnswered(swappedStart(), 'b', 'a'); // S = b asks, T = a answers
+		const s = swappedStart(); // S = b, b's turn
 		const r = reduce(s, { t: 'guess', playerId: 'b', footballerId: s.players.a.secretId! }, 9);
 		expect(r.state.phase).toBe('equalizer'); // new S's correct guess → equalizer, not a win
 		expect(r.state.turn).toBe('a'); // new T (order[1]) is owed the equalizer guess

@@ -256,7 +256,6 @@ export class GameRoom extends DurableObject<Env> {
 			turn: order[0],
 			turns: 0,
 			awaitingAnswer: false,
-			answeredThisTurn: false,
 			penalty: null,
 			chat: [],
 			winnerId: null,

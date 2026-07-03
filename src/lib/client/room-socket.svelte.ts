@@ -25,7 +25,6 @@ export class RoomSocket {
 	chat = $state<ChatEntry[]>([]);
 	turn = $state<string | null>(null);
 	awaitingAnswer = $state(false);
-	answeredThisTurn = $state(false); // ask→answer done this turn; guess/pass legal only when true (docs/11)
 	penalty = $state<PenaltyState | null>(null); // present iff phase === 'penalty' (docs/11)
 	you = $state('');
 	readonly eliminated = new SvelteSet<string>(); // my private flips (optimistic; stable reactive instance)
@@ -114,16 +113,8 @@ export class RoomSocket {
 				break;
 			case 'patch':
 				if (msg.phase) this.phase = msg.phase;
-				if (msg.turn !== undefined && msg.turn !== this.turn) {
-					this.turn = msg.turn;
-					this.answeredThisTurn = false; // turn rotated — back to the ask step (docs/11)
-				}
-				if (msg.awaitingAnswer !== undefined) {
-					// The act step opens once my outstanding ask has been answered (docs/11 turn gating).
-					if (this.awaitingAnswer && !msg.awaitingAnswer && this.turn === this.you)
-						this.answeredThisTurn = true;
-					this.awaitingAnswer = msg.awaitingAnswer;
-				}
+				if (msg.turn !== undefined) this.turn = msg.turn;
+				if (msg.awaitingAnswer !== undefined) this.awaitingAnswer = msg.awaitingAnswer;
 				if (msg.penalty !== undefined) this.penalty = msg.penalty;
 				if (msg.chat) this.chat = [...this.chat, msg.chat];
 				break;
@@ -152,7 +143,6 @@ export class RoomSocket {
 		this.chat = s.chat;
 		this.turn = s.turn;
 		this.awaitingAnswer = s.awaitingAnswer;
-		this.answeredThisTurn = s.answeredThisTurn;
 		this.penalty = s.penalty;
 		this.eliminated.clear();
 		for (const id of s.players[you]?.eliminated ?? []) this.eliminated.add(id);

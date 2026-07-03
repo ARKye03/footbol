@@ -6,7 +6,6 @@
 		phase: Phase;
 		myTurn: boolean;
 		awaitingAnswer: boolean;
-		answeredThisTurn: boolean;
 		penaltyRole?: 'asker' | 'answerer' | null;
 		penaltyRemaining?: number;
 		isSecond?: boolean;
@@ -22,7 +21,6 @@
 		phase,
 		myTurn,
 		awaitingAnswer,
-		answeredThisTurn,
 		penaltyRole = null,
 		penaltyRemaining = 0,
 		isSecond = false,
@@ -175,25 +173,23 @@
 {:else if awaitingAnswer && !myTurn}
 	{@render answerPrompt(opponentName || m.play_their_turn())}
 {:else if myTurn && !awaitingAnswer}
-	<!-- asker: ask a question; once answered, the act step opens (guess or end turn) -->
+	<!-- your turn: ask (answering auto-ends it), or opt into a guess / pass without asking -->
 	<div class="border-t border-white/[0.08] p-3.5">
 		{@render askForm()}
-		{#if answeredThisTurn}
-			<div class="flex gap-2">
-				<button
-					type="button"
-					onclick={onStartGuess}
-					class="flex-1 rounded-[11px] border-[1.5px] border-orange/50 bg-orange/[0.16] py-2.75 text-sm font-extrabold text-[#ffb27a] transition hover:bg-orange/25"
-					style="padding-top:11px;padding-bottom:11px">🎯 {m.play_make_guess()}</button
-				>
-				<button
-					type="button"
-					onclick={onEndTurn}
-					class="rounded-[11px] border border-white/[0.18] bg-white/[0.06] px-4 text-sm font-bold text-fog transition hover:bg-white/10"
-					>{m.play_end_turn()}</button
-				>
-			</div>
-		{/if}
+		<div class="flex gap-2">
+			<button
+				type="button"
+				onclick={onStartGuess}
+				class="flex-1 rounded-[11px] border-[1.5px] border-orange/50 bg-orange/[0.16] py-2.75 text-sm font-extrabold text-[#ffb27a] transition hover:bg-orange/25"
+				style="padding-top:11px;padding-bottom:11px">🎯 {m.play_make_guess()}</button
+			>
+			<button
+				type="button"
+				onclick={onEndTurn}
+				class="rounded-[11px] border border-white/[0.18] bg-white/[0.06] px-4 text-sm font-bold text-fog transition hover:bg-white/10"
+				>{m.play_end_turn()}</button
+			>
+		</div>
 	</div>
 {:else}
 	<!-- waiting: opponent is thinking, or our question is being answered -->
